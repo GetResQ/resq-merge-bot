@@ -56,10 +56,6 @@ async function processStatusEvent(statusEvent: StatusEvent): Promise<void> {
   if (statusEvent.state === "pending") {
     return
   }
-  await processNonPendingStatus(
-    statusEvent.repository,
-    statusEvent.commit,
-    statusEvent.state
-  )
+  await processNonPendingStatus(statusEvent.repository, statusEvent.commit)
   core.info("Finish process status event")
 }
