@@ -489,17 +489,21 @@ function processQueueForMergingCommand(pr, repo) {
         catch (error) {
             if (error.message === 'Failed to merge: "Already merged"') {
                 core.info("PR already up-to-date.");
-                try {
-                    yield mutations_1.mergePr({
-                        title: pr.title,
-                        number: pr.number,
-                        baseRef: { name: pr.base.ref },
-                        headRef: { name: pr.head.ref },
-                    }, repo.node_id);
-                }
-                catch (mergePrError) {
-                    core.info("Unable to merge the PR");
-                    core.error(mergePrError);
+                const mergingPr = mergingLabel.pullRequests.nodes[0];
+                const latestCommit = mergingPr.commits.nodes[0].commit;
+                if (latestCommit.state === "SUCCESS") {
+                    try {
+                        yield mutations_1.mergePr({
+                            title: pr.title,
+                            number: pr.number,
+                            baseRef: { name: pr.base.ref },
+                            headRef: { name: pr.head.ref },
+                        }, repo.node_id);
+                    }
+                    catch (mergePrError) {
+                        core.info("Unable to merge the PR");
+                        core.error(mergePrError);
+                    }
                 }
             }
             mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id, repo.node_id);
@@ -528,6 +532,14 @@ function fetchData(owner, repo) {
                    }
                    headRef {
                      name
+                   }
+                   commits (last: 1) {
+                    nodes {
+                      commit {
+                        id
+                        state
+                      }
+                    }
                    }
                  }
                }
