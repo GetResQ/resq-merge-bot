@@ -57,6 +57,8 @@ PRs welcome :)
 
 ## Releasing
 
+test change
+
 1. Bump the version in `package.json`
 2. Run `npm install && npm run all`
 3. Update the version in code example in `README.md`
