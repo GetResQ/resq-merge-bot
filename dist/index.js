@@ -329,7 +329,7 @@ function processNonPendingStatus(repo, commit) {
             // Commit that trigger this hook is not the latest commit of the merging PR
             return;
         }
-        if (latestCommit.state === "SUCCESS") {
+        if (latestCommit.status.state === "SUCCESS") {
             core.info("##### ALL CHECK PASS");
             try {
                 yield mutations_1.mergePr(mergingPr, repo.node_id);
@@ -491,7 +491,7 @@ function processQueueForMergingCommand(pr, repo) {
                 core.info("PR already up-to-date.");
                 const mergingPr = mergingLabel.pullRequests.nodes[0];
                 const latestCommit = mergingPr.commits.nodes[0].commit;
-                if (latestCommit.state === "SUCCESS") {
+                if (latestCommit.status.state === "SUCCESS") {
                     try {
                         yield mutations_1.mergePr({
                             title: pr.title,
@@ -537,7 +537,9 @@ function fetchData(owner, repo) {
                     nodes {
                       commit {
                         id
-                        state
+                        status {
+                          state
+                        }
                       }
                     }
                    }

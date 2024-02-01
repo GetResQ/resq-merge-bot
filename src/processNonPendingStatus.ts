@@ -37,7 +37,7 @@ export async function processNonPendingStatus(
     return
   }
 
-  if (latestCommit.state === "SUCCESS") {
+  if (latestCommit.status.state === "SUCCESS") {
     core.info("##### ALL CHECK PASS")
     try {
       await mergePr(mergingPr, repo.node_id)
@@ -92,8 +92,8 @@ async function fetchData(
                       context: string
                       state: "SUCCESS" | "PENDING" | "FAILURE"
                     }[]
+                    state: "SUCCESS" | "PENDING" | "FAILURE"
                   }
-                  state: "SUCCESS" | "PENDING" | "FAILURE"
                 }
               }[]
             }

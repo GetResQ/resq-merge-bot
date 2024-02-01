@@ -80,7 +80,7 @@ export async function processQueueForMergingCommand(
       core.info("PR already up-to-date.")
       const mergingPr = mergingLabel.pullRequests.nodes[0]
       const latestCommit = mergingPr.commits.nodes[0].commit
-      if (latestCommit.state === "SUCCESS") {
+      if (latestCommit.status.state === "SUCCESS") {
         try {
           await mergePr(
             {
@@ -129,7 +129,9 @@ async function fetchData(
               nodes: {
                 commit: {
                   id: string
-                  state: "SUCCESS" | "PENDING" | "FAILURE"
+                  status: {
+                    state: "SUCCESS" | "PENDING" | "FAILURE"
+                  }
                 }
               }[]
             }
@@ -159,7 +161,9 @@ async function fetchData(
                     nodes {
                       commit {
                         id
-                        state
+                        status {
+                          state
+                        }
                       }
                     }
                    }
