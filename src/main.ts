@@ -59,7 +59,6 @@ async function processStatusEvent(statusEvent: StatusEvent): Promise<void> {
   await processNonPendingStatus(
     statusEvent.repository,
     statusEvent.commit,
-    statusEvent.context,
     statusEvent.state
   )
   core.info("Finish process status event")

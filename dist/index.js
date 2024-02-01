@@ -127,7 +127,7 @@ function processStatusEvent(statusEvent) {
         if (statusEvent.state === "pending") {
             return;
         }
-        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.context, statusEvent.state);
+        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.state);
         core.info("Finish process status event");
     });
 }
@@ -317,9 +317,9 @@ const labels_1 = __nccwpck_require__(579);
  * @param context Check name
  * @param state Status state
  */
-function processNonPendingStatus(repo, commit, context, state) {
+function processNonPendingStatus(repo, commit, state) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { repository: { branchProtectionRules, labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
+        const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
         if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
             // No merging PR to process
@@ -331,20 +331,11 @@ function processNonPendingStatus(repo, commit, context, state) {
             // Commit that trigger this hook is not the latest commit of the merging PR
             return;
         }
-        const baseBranchRule = branchProtectionRules.nodes.find((rule) => rule.pattern === mergingPr.baseRef.name);
-        if (!baseBranchRule) {
-            // TODO: No protection rule for merging this PR. Merge immediately?
-            return;
-        }
-        const requiredCheckNames = baseBranchRule.requiredStatusCheckContexts;
+        const requiredChecks = mergingPr.checks.nodes;
         if (state === "success") {
-            const isAllRequiredCheckPassed = requiredCheckNames.every((checkName) => {
-                if (!checkName.includes("ci/circleci")) {
-                    // TODO: Support GitHub Action. Can't get `statusCheckRollup` to work in GitHub API Explorer for some reason.
-                    return true;
-                }
-                return latestCommit.status.contexts.find((latestCommitContext) => latestCommitContext.context === checkName &&
-                    latestCommitContext.state === "SUCCESS");
+            const isAllRequiredCheckPassed = requiredChecks.every((node) => {
+                const status = node.status;
+                return status === "NEUTRAL" || status === "SUCCESS";
             });
             if (!isAllRequiredCheckPassed) {
                 // Some required check is still pending
@@ -358,12 +349,6 @@ function processNonPendingStatus(repo, commit, context, state) {
             catch (error) {
                 core.info("Unable to merge the PR.");
                 core.error(error);
-            }
-        }
-        else {
-            if (!requiredCheckNames.includes(context)) {
-                // The failed check from this webhook is not in the required status check, so we can ignore it.
-                return;
             }
         }
         const queuedLabel = labelNodes.find(labels_1.isBotQueuedLabel);
@@ -384,12 +369,6 @@ function fetchData(owner, repo) {
     return __awaiter(this, void 0, void 0, function* () {
         return graphqlClient_1.graphqlClient(`query allLabels($owner: String!, $repo: String!) {
          repository(owner:$owner, name:$repo) {
-           branchProtectionRules(last: 10) {
-             nodes {
-               pattern
-               requiredStatusCheckContexts
-             }
-           }
            labels(last: 50) {
              nodes {
                id
@@ -397,6 +376,12 @@ function fetchData(owner, repo) {
                pullRequests(first: 20) {
                  nodes {
                    id
+                   checks(first: 10) {
+                    nodes {
+                      name
+                      status
+                    }
+                   }
                    number
                    title
                    baseRef {

@@ -18,7 +18,6 @@ import { Repository } from "@octokit/webhooks-definitions/schema"
 export async function processNonPendingStatus(
   repo: Repository,
   commit: { node_id: string },
-  context: string,
   state: "success" | "failure" | "error"
 ): Promise<void> {
   const {
@@ -43,10 +42,10 @@ export async function processNonPendingStatus(
   const requiredChecks = mergingPr.checks.nodes
 
   if (state === "success") {
-    const isAllRequiredCheckPassed = requiredChecks.every((node: any) => {
-      const status = node.status;
-      return status === 'NEUTRAL' || status === 'SUCCESS';
-    });
+    const isAllRequiredCheckPassed = requiredChecks.every((node) => {
+      const status = node.status
+      return status === "NEUTRAL" || status === "SUCCESS"
+    })
     if (!isAllRequiredCheckPassed) {
       // Some required check is still pending
       return
@@ -95,8 +94,14 @@ async function fetchData(
             checks: {
               nodes: {
                 name: string
-                status: "SUCCESS" | "FAILURE" | "NEUTRAL" | "CANCELLED" | "TIMED_OUT" | "ACTION_REQUIRED"
-              }
+                status:
+                  | "SUCCESS"
+                  | "FAILURE"
+                  | "NEUTRAL"
+                  | "CANCELLED"
+                  | "TIMED_OUT"
+                  | "ACTION_REQUIRED"
+              }[]
             }
             number: number
             title: string
