@@ -23,7 +23,6 @@ export async function processNonPendingStatus(
 ): Promise<void> {
   const {
     repository: {
-      branchProtectionRules,
       labels: { nodes: labelNodes },
     },
   } = await fetchData(repo.owner.login, repo.name)
@@ -41,27 +40,13 @@ export async function processNonPendingStatus(
     // Commit that trigger this hook is not the latest commit of the merging PR
     return
   }
-  const baseBranchRule = branchProtectionRules.nodes.find(
-    (rule) => rule.pattern === mergingPr.baseRef.name
-  )
-  if (!baseBranchRule) {
-    // TODO: No protection rule for merging this PR. Merge immediately?
-    return
-  }
-  const requiredCheckNames = baseBranchRule.requiredStatusCheckContexts
+  const requiredChecks = mergingPr.checks.nodes
 
   if (state === "success") {
-    const isAllRequiredCheckPassed = requiredCheckNames.every((checkName) => {
-      if (!checkName.includes("ci/circleci")) {
-        // TODO: Support GitHub Action. Can't get `statusCheckRollup` to work in GitHub API Explorer for some reason.
-        return true
-      }
-      return latestCommit.status.contexts.find(
-        (latestCommitContext) =>
-          latestCommitContext.context === checkName &&
-          latestCommitContext.state === "SUCCESS"
-      )
-    })
+    const isAllRequiredCheckPassed = requiredChecks.every((node: any) => {
+      const status = node.status;
+      return status === 'NEUTRAL' || status === 'SUCCESS';
+    });
     if (!isAllRequiredCheckPassed) {
       // Some required check is still pending
       return
@@ -74,11 +59,6 @@ export async function processNonPendingStatus(
     } catch (error) {
       core.info("Unable to merge the PR.")
       core.error(error)
-    }
-  } else {
-    if (!requiredCheckNames.includes(context)) {
-      // The failed check from this webhook is not in the required status check, so we can ignore it.
-      return
     }
   }
 
@@ -105,9 +85,6 @@ async function fetchData(
   repo: string
 ): Promise<{
   repository: {
-    branchProtectionRules: {
-      nodes: { pattern: string; requiredStatusCheckContexts: string[] }[]
-    }
     labels: {
       nodes: {
         id: string
@@ -115,6 +92,12 @@ async function fetchData(
         pullRequests: {
           nodes: {
             id: string
+            checks: {
+              nodes: {
+                name: string
+                status: "SUCCESS" | "FAILURE" | "NEUTRAL" | "CANCELLED" | "TIMED_OUT" | "ACTION_REQUIRED"
+              }
+            }
             number: number
             title: string
             baseRef: { name: string }
@@ -142,12 +125,6 @@ async function fetchData(
   return graphqlClient(
     `query allLabels($owner: String!, $repo: String!) {
          repository(owner:$owner, name:$repo) {
-           branchProtectionRules(last: 10) {
-             nodes {
-               pattern
-               requiredStatusCheckContexts
-             }
-           }
            labels(last: 50) {
              nodes {
                id
@@ -155,6 +132,12 @@ async function fetchData(
                pullRequests(first: 20) {
                  nodes {
                    id
+                   checks(first: 10) {
+                    nodes {
+                      name
+                      status
+                    }
+                   }
                    number
                    title
                    baseRef {
