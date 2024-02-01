@@ -127,7 +127,7 @@ function processStatusEvent(statusEvent) {
         if (statusEvent.state === "pending") {
             return;
         }
-        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.state);
+        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit);
         core.info("Finish process status event");
     });
 }
@@ -314,10 +314,8 @@ const labels_1 = __nccwpck_require__(579);
  *
  * @param repo Repository object
  * @param commit Commit object
- * @param context Check name
- * @param state Status state
  */
-function processNonPendingStatus(repo, commit, state) {
+function processNonPendingStatus(repo, commit) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
@@ -331,16 +329,7 @@ function processNonPendingStatus(repo, commit, state) {
             // Commit that trigger this hook is not the latest commit of the merging PR
             return;
         }
-        const requiredChecks = mergingPr.checks.nodes;
-        if (state === "success") {
-            const isAllRequiredCheckPassed = requiredChecks.every((node) => {
-                const status = node.status;
-                return status === "NEUTRAL" || status === "SUCCESS";
-            });
-            if (!isAllRequiredCheckPassed) {
-                // Some required check is still pending
-                return;
-            }
+        if (latestCommit.state === "SUCCESS") {
             core.info("##### ALL CHECK PASS");
             try {
                 yield mutations_1.mergePr(mergingPr, repo.node_id);
@@ -376,12 +365,6 @@ function fetchData(owner, repo) {
                pullRequests(first: 20) {
                  nodes {
                    id
-                   checks(first: 10) {
-                    nodes {
-                      name
-                      status
-                    }
-                   }
                    number
                    title
                    baseRef {
@@ -399,6 +382,7 @@ function fetchData(owner, repo) {
                              context
                              state
                            }
+                           state
                          }
                        }
                      }

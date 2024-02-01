@@ -12,13 +12,10 @@ import { Repository } from "@octokit/webhooks-definitions/schema"
  *
  * @param repo Repository object
  * @param commit Commit object
- * @param context Check name
- * @param state Status state
  */
 export async function processNonPendingStatus(
   repo: Repository,
-  commit: { node_id: string },
-  state: "success" | "failure" | "error"
+  commit: { node_id: string }
 ): Promise<void> {
   const {
     repository: {
@@ -39,18 +36,8 @@ export async function processNonPendingStatus(
     // Commit that trigger this hook is not the latest commit of the merging PR
     return
   }
-  const requiredChecks = mergingPr.checks.nodes
 
-  if (state === "success") {
-    const isAllRequiredCheckPassed = requiredChecks.every((node) => {
-      const status = node.status
-      return status === "NEUTRAL" || status === "SUCCESS"
-    })
-    if (!isAllRequiredCheckPassed) {
-      // Some required check is still pending
-      return
-    }
-
+  if (latestCommit.state === "SUCCESS") {
     core.info("##### ALL CHECK PASS")
     try {
       await mergePr(mergingPr, repo.node_id)
@@ -91,18 +78,6 @@ async function fetchData(
         pullRequests: {
           nodes: {
             id: string
-            checks: {
-              nodes: {
-                name: string
-                status:
-                  | "SUCCESS"
-                  | "FAILURE"
-                  | "NEUTRAL"
-                  | "CANCELLED"
-                  | "TIMED_OUT"
-                  | "ACTION_REQUIRED"
-              }[]
-            }
             number: number
             title: string
             baseRef: { name: string }
@@ -118,6 +93,7 @@ async function fetchData(
                       state: "SUCCESS" | "PENDING" | "FAILURE"
                     }[]
                   }
+                  state: "SUCCESS" | "PENDING" | "FAILURE"
                 }
               }[]
             }
@@ -137,12 +113,6 @@ async function fetchData(
                pullRequests(first: 20) {
                  nodes {
                    id
-                   checks(first: 10) {
-                    nodes {
-                      name
-                      status
-                    }
-                   }
                    number
                    title
                    baseRef {
@@ -160,6 +130,7 @@ async function fetchData(
                              context
                              state
                            }
+                           state
                          }
                        }
                      }
