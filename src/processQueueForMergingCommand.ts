@@ -121,6 +121,17 @@ async function fetchData(
             id: string
             baseRef: { name: string }
             headRef: { name: string }
+            commits: {
+              nodes: {
+                id: string
+                commit: {
+                  id: string
+                  status: {
+                    state: "SUCCESS" | "PENDING" | "FAILURE"
+                  }
+                }
+              }[]
+            }
           }[]
         }
       }[]
@@ -143,6 +154,19 @@ async function fetchData(
                    headRef {
                      name
                    }
+                   commits(last: 1) {
+                    nodes {
+                      commit {
+                        id
+                        status {
+                          contexts {
+                            context
+                            state
+                          }
+                        }
+                      }
+                    }
+                  }
                  }
                }
              }
