@@ -590,10 +590,6 @@ function fetchData(owner, repo) {
                               }
                             }
                           }
-                          contexts {
-                            context
-                            state
-                          }
                         }
                       }
                     }

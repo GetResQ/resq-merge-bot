@@ -207,10 +207,6 @@ async function fetchData(
                               }
                             }
                           }
-                          contexts {
-                            context
-                            state
-                          }
                         }
                       }
                     }
