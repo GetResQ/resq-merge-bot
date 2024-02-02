@@ -70,7 +70,24 @@ export async function processQueueForMergingCommand(
   if (!isBotMergingLabel(labelToAdd)) {
     return
   }
+  const mergingPr = labelToAdd.pullRequests.nodes[0]
+  const latestCommit = mergingPr.commits.nodes[0].commit
 
+  const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
+    (node) => {
+      const status = node.checkRuns.nodes[0].status
+      return status === "COMPLETED" || status === null
+    }
+  )
+  if (!isAllRequiredCheckPassed) {
+    stopMergingCurrentPrAndProcessNextPrInQueue(
+      mergingLabel,
+      queuedLabel,
+      pr.node_id,
+      repo.node_id
+    )
+    return
+  }
   // Try to make the PR up-to-date
   try {
     await mergeBranch(pr.head.ref, pr.base.ref, repo.node_id)
@@ -138,6 +155,22 @@ async function fetchData(
             headRef: { name: string }
             title: string
             number: number
+            commits: {
+              nodes: {
+                commit: {
+                  checkSuites: {
+                    nodes: {
+                      checkRuns: {
+                        nodes: {
+                          status: string
+                          name: string
+                        }[]
+                      }
+                    }[]
+                  }
+                }
+              }[]
+            }
           }[]
         }
       }[]
@@ -154,19 +187,26 @@ async function fetchData(
                pullRequests(first: 20) {
                  nodes {
                    id
-                   title
-                   number
                    baseRef {
                      name
                    }
                    headRef {
                      name
                    }
+                   title
+                   number
                    commits(last: 1) {
                     nodes {
                       commit {
-                        id
-                        status {
+                        checkSuites(first: 10) {
+                          nodes {
+                            checkRuns(first: 10) {
+                              nodes {
+                                status
+                                name
+                              }
+                            }
+                          }
                           contexts {
                             context
                             state

@@ -505,6 +505,16 @@ function processQueueForMergingCommand(pr, repo) {
         if (!labels_1.isBotMergingLabel(labelToAdd)) {
             return;
         }
+        const mergingPr = labelToAdd.pullRequests.nodes[0];
+        const latestCommit = mergingPr.commits.nodes[0].commit;
+        const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
+            const status = node.checkRuns.nodes[0].status;
+            return status === "COMPLETED" || status === null;
+        });
+        if (!isAllRequiredCheckPassed) {
+            mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id, repo.node_id);
+            return;
+        }
         // Try to make the PR up-to-date
         try {
             yield mutations_1.mergeBranch(pr.head.ref, pr.base.ref, repo.node_id);
@@ -560,19 +570,26 @@ function fetchData(owner, repo) {
                pullRequests(first: 20) {
                  nodes {
                    id
-                   title
-                   number
                    baseRef {
                      name
                    }
                    headRef {
                      name
                    }
+                   title
+                   number
                    commits(last: 1) {
                     nodes {
                       commit {
-                        id
-                        status {
+                        checkSuites(first: 10) {
+                          nodes {
+                            checkRuns(first: 10) {
+                              nodes {
+                                status
+                                name
+                              }
+                            }
+                          }
                           contexts {
                             context
                             state
