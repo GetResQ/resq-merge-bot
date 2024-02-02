@@ -127,7 +127,7 @@ function processStatusEvent(statusEvent) {
         if (statusEvent.state === "pending") {
             return;
         }
-        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit);
+        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.state);
         core.info("Finish process status event");
     });
 }
@@ -314,8 +314,10 @@ const labels_1 = __nccwpck_require__(579);
  *
  * @param repo Repository object
  * @param commit Commit object
+ * @param context Check name
+ * @param state Status state
  */
-function processNonPendingStatus(repo, commit) {
+function processNonPendingStatus(repo, commit, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
@@ -324,12 +326,20 @@ function processNonPendingStatus(repo, commit) {
             return;
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
-        const latestCommit = mergingPr.commits.nodes[0].commit;
+        const latestCommit = mergingPr.commits.nodes.commit;
         if (commit.node_id !== latestCommit.id) {
             // Commit that trigger this hook is not the latest commit of the merging PR
             return;
         }
-        if (latestCommit.status.state === "SUCCESS") {
+        if (state === "success") {
+            const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
+                const status = node.checkRuns.nodes[0].status;
+                return status === "COMPLETED" || status === null;
+            });
+            if (!isAllRequiredCheckPassed) {
+                // Some required check is still pending
+                return;
+            }
             core.info("##### ALL CHECK PASS");
             try {
                 yield mutations_1.mergePr(mergingPr, repo.node_id);
@@ -357,42 +367,44 @@ exports.processNonPendingStatus = processNonPendingStatus;
 function fetchData(owner, repo) {
     return __awaiter(this, void 0, void 0, function* () {
         return graphqlClient_1.graphqlClient(`query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
-                 nodes {
-                   id
-                   number
-                   title
-                   baseRef {
-                     name
-                   }
-                   headRef {
-                     name
-                   }
-                   commits(last: 1) {
-                     nodes {
-                       commit {
-                         id
-                         status {
-                           contexts {
-                             context
-                             state
+      repository(owner:$owner, name:$repo) {
+        labels(last: 50) {
+          nodes {
+            id
+            name
+            pullRequests(first: 20) {
+              nodes {
+                id
+                number
+                title
+                baseRef {
+                  name
+                }
+                headRef {
+                  name
+                }
+                commits(last: 1) {
+                  nodes {
+                   commit {
+                     checkSuites(first: 10) {
+                       nodes {
+                         checkRuns(first:10) {
+                           nodes {
+                             status
+                             name
                            }
-                           state
                          }
                        }
                      }
                    }
-                 }
-               }
-             }
-           }
-         }
-       }`, { owner, repo });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }`, { owner, repo });
     });
 }
 
@@ -489,21 +501,17 @@ function processQueueForMergingCommand(pr, repo) {
         catch (error) {
             if (error.message === 'Failed to merge: "Already merged"') {
                 core.info("PR already up-to-date.");
-                const mergingPr = mergingLabel.pullRequests.nodes[0];
-                const latestCommit = mergingPr.commits.nodes[0].commit;
-                if (latestCommit.status.state === "SUCCESS") {
-                    try {
-                        yield mutations_1.mergePr({
-                            title: pr.title,
-                            number: pr.number,
-                            baseRef: { name: pr.base.ref },
-                            headRef: { name: pr.head.ref },
-                        }, repo.node_id);
-                    }
-                    catch (mergePrError) {
-                        core.info("Unable to merge the PR");
-                        core.error(mergePrError);
-                    }
+                try {
+                    yield mutations_1.mergePr({
+                        title: pr.title,
+                        number: pr.number,
+                        baseRef: { name: pr.base.ref },
+                        headRef: { name: pr.head.ref },
+                    }, repo.node_id);
+                }
+                catch (mergePrError) {
+                    core.info("Unable to merge the PR");
+                    core.error(mergePrError);
                 }
             }
             mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id, repo.node_id);
@@ -533,16 +541,19 @@ function fetchData(owner, repo) {
                    headRef {
                      name
                    }
-                   commits (last: 1) {
+                   commits(last: 1) {
                     nodes {
                       commit {
                         id
                         status {
-                          state
+                          contexts {
+                            context
+                            state
+                          }
                         }
                       }
                     }
-                   }
+                  }
                  }
                }
              }

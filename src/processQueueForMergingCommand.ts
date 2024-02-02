@@ -78,23 +78,19 @@ export async function processQueueForMergingCommand(
   } catch (error) {
     if (error.message === 'Failed to merge: "Already merged"') {
       core.info("PR already up-to-date.")
-      const mergingPr = mergingLabel.pullRequests.nodes[0]
-      const latestCommit = mergingPr.commits.nodes[0].commit
-      if (latestCommit.status.state === "SUCCESS") {
-        try {
-          await mergePr(
-            {
-              title: pr.title,
-              number: pr.number,
-              baseRef: { name: pr.base.ref },
-              headRef: { name: pr.head.ref },
-            },
-            repo.node_id
-          )
-        } catch (mergePrError) {
-          core.info("Unable to merge the PR")
-          core.error(mergePrError)
-        }
+      try {
+        await mergePr(
+          {
+            title: pr.title,
+            number: pr.number,
+            baseRef: { name: pr.base.ref },
+            headRef: { name: pr.head.ref },
+          },
+          repo.node_id
+        )
+      } catch (mergePrError) {
+        core.info("Unable to merge the PR")
+        core.error(mergePrError)
       }
     }
     stopMergingCurrentPrAndProcessNextPrInQueue(
@@ -127,6 +123,7 @@ async function fetchData(
             headRef: { name: string }
             commits: {
               nodes: {
+                id: string
                 commit: {
                   id: string
                   status: {
@@ -157,16 +154,19 @@ async function fetchData(
                    headRef {
                      name
                    }
-                   commits (last: 1) {
+                   commits(last: 1) {
                     nodes {
                       commit {
                         id
                         status {
-                          state
+                          contexts {
+                            context
+                            state
+                          }
                         }
                       }
                     }
-                   }
+                  }
                  }
                }
              }

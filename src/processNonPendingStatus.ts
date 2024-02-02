@@ -12,10 +12,13 @@ import { Repository } from "@octokit/webhooks-definitions/schema"
  *
  * @param repo Repository object
  * @param commit Commit object
+ * @param context Check name
+ * @param state Status state
  */
 export async function processNonPendingStatus(
   repo: Repository,
-  commit: { node_id: string }
+  commit: { node_id: string },
+  state: "success" | "failure" | "error"
 ): Promise<void> {
   const {
     repository: {
@@ -31,13 +34,24 @@ export async function processNonPendingStatus(
   }
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
-  const latestCommit = mergingPr.commits.nodes[0].commit
+  const latestCommit = mergingPr.commits.nodes.commit
   if (commit.node_id !== latestCommit.id) {
     // Commit that trigger this hook is not the latest commit of the merging PR
     return
   }
 
-  if (latestCommit.status.state === "SUCCESS") {
+  if (state === "success") {
+    const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
+      (node) => {
+        const status = node.checkRuns.nodes[0].status
+        return status === "COMPLETED" || status === null
+      }
+    )
+    if (!isAllRequiredCheckPassed) {
+      // Some required check is still pending
+      return
+    }
+
     core.info("##### ALL CHECK PASS")
     try {
       await mergePr(mergingPr, repo.node_id)
@@ -84,18 +98,20 @@ async function fetchData(
             headRef: { name: string }
             commits: {
               nodes: {
-                id: string
                 commit: {
                   id: string
-                  status: {
-                    contexts: {
-                      context: string
-                      state: "SUCCESS" | "PENDING" | "FAILURE"
+                  checkSuites: {
+                    nodes: {
+                      checkRuns: {
+                        nodes: {
+                          status: string
+                          name: string
+                        }[]
+                      }
                     }[]
-                    state: "SUCCESS" | "PENDING" | "FAILURE"
                   }
                 }
-              }[]
+              }
             }
           }[]
         }
@@ -105,42 +121,44 @@ async function fetchData(
 }> {
   return graphqlClient(
     `query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
-                 nodes {
-                   id
-                   number
-                   title
-                   baseRef {
-                     name
-                   }
-                   headRef {
-                     name
-                   }
-                   commits(last: 1) {
-                     nodes {
-                       commit {
-                         id
-                         status {
-                           contexts {
-                             context
-                             state
+      repository(owner:$owner, name:$repo) {
+        labels(last: 50) {
+          nodes {
+            id
+            name
+            pullRequests(first: 20) {
+              nodes {
+                id
+                number
+                title
+                baseRef {
+                  name
+                }
+                headRef {
+                  name
+                }
+                commits(last: 1) {
+                  nodes {
+                   commit {
+                     checkSuites(first: 10) {
+                       nodes {
+                         checkRuns(first:10) {
+                           nodes {
+                             status
+                             name
                            }
-                           state
                          }
                        }
                      }
                    }
-                 }
-               }
-             }
-           }
-         }
-       }`,
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }`,
     { owner, repo }
   )
 }
