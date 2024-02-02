@@ -246,7 +246,19 @@ function stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, 
             try {
                 yield mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId);
                 core.info("PR successfully made up-to-date");
-                break;
+                try {
+                    yield mergePr({
+                        title: queuedPr.title,
+                        number: queuedPr.number,
+                        baseRef: queuedPr.baseRef,
+                        headRef: queuedPr.headRef,
+                    }, repoId);
+                }
+                catch (mergePrError) {
+                    core.info("Unable to merge the PR");
+                    core.error(mergePrError);
+                }
+                yield removeLabel(mergingLabel, queuedPr.id);
             }
             catch (error) {
                 core.info("Unable to update the queued PR. Will process the next item in the queue.");
@@ -548,6 +560,8 @@ function fetchData(owner, repo) {
                pullRequests(first: 20) {
                  nodes {
                    id
+                   title
+                   number
                    baseRef {
                      name
                    }
