@@ -93,6 +93,20 @@ export async function processQueueForMergingCommand(
         core.error(mergePrError)
       }
     }
+    try {
+      await mergePr(
+        {
+          title: pr.title,
+          number: pr.number,
+          baseRef: { name: pr.base.ref },
+          headRef: { name: pr.head.ref },
+        },
+        repo.node_id
+      )
+    } catch (mergePrError) {
+      core.info("Unable to merge the PR")
+      core.error(mergePrError)
+    }
     stopMergingCurrentPrAndProcessNextPrInQueue(
       mergingLabel,
       queuedLabel,
