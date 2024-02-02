@@ -71,7 +71,7 @@ export async function processQueueForMergingCommand(
     return
   }
   const mergingPr = labelToAdd.pullRequests.nodes[0]
-  const latestCommit = mergingPr.commits.nodes[0].commit
+  const latestCommit = mergingPr.commits.nodes.commit
 
   const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
     (node) => {
@@ -151,13 +151,14 @@ async function fetchData(
         pullRequests: {
           nodes: {
             id: string
+            number: number
+            title: string
             baseRef: { name: string }
             headRef: { name: string }
-            title: string
-            number: number
             commits: {
               nodes: {
                 commit: {
+                  id: string
                   checkSuites: {
                     nodes: {
                       checkRuns: {
@@ -169,7 +170,7 @@ async function fetchData(
                     }[]
                   }
                 }
-              }[]
+              }
             }
           }[]
         }
@@ -179,44 +180,44 @@ async function fetchData(
 }> {
   return graphqlClient(
     `query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
-                 nodes {
-                   id
-                   baseRef {
-                     name
+      repository(owner:$owner, name:$repo) {
+        labels(last: 50) {
+          nodes {
+            id
+            name
+            pullRequests(first: 20) {
+              nodes {
+                id
+                number
+                title
+                baseRef {
+                  name
+                }
+                headRef {
+                  name
+                }
+                commits(last: 1) {
+                  nodes {
+                   commit {
+                     checkSuites(first: 10) {
+                       nodes {
+                         checkRuns(first:10) {
+                           nodes {
+                             status
+                             name
+                           }
+                         }
+                       }
+                     }
                    }
-                   headRef {
-                     name
-                   }
-                   title
-                   number
-                   commits(last: 1) {
-                    nodes {
-                      commit {
-                        checkSuites(first: 10) {
-                          nodes {
-                            checkRuns(first: 10) {
-                              nodes {
-                                status
-                                name
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
                   }
-                 }
-               }
-             }
-           }
-         }
-       }`,
+                }
+              }
+            }
+          }
+        }
+      }
+    }`,
     { owner, repo }
   )
 }

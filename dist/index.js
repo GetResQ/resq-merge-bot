@@ -506,7 +506,7 @@ function processQueueForMergingCommand(pr, repo) {
             return;
         }
         const mergingPr = labelToAdd.pullRequests.nodes[0];
-        const latestCommit = mergingPr.commits.nodes[0].commit;
+        const latestCommit = mergingPr.commits.nodes.commit;
         const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
             const status = node.checkRuns.nodes[0].status;
             return status === "COMPLETED" || status === null;
@@ -562,44 +562,44 @@ exports.processQueueForMergingCommand = processQueueForMergingCommand;
 function fetchData(owner, repo) {
     return __awaiter(this, void 0, void 0, function* () {
         return graphqlClient_1.graphqlClient(`query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
-                 nodes {
-                   id
-                   baseRef {
-                     name
+      repository(owner:$owner, name:$repo) {
+        labels(last: 50) {
+          nodes {
+            id
+            name
+            pullRequests(first: 20) {
+              nodes {
+                id
+                number
+                title
+                baseRef {
+                  name
+                }
+                headRef {
+                  name
+                }
+                commits(last: 1) {
+                  nodes {
+                   commit {
+                     checkSuites(first: 10) {
+                       nodes {
+                         checkRuns(first:10) {
+                           nodes {
+                             status
+                             name
+                           }
+                         }
+                       }
+                     }
                    }
-                   headRef {
-                     name
-                   }
-                   title
-                   number
-                   commits(last: 1) {
-                    nodes {
-                      commit {
-                        checkSuites(first: 10) {
-                          nodes {
-                            checkRuns(first: 10) {
-                              nodes {
-                                status
-                                name
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
                   }
-                 }
-               }
-             }
-           }
-         }
-       }`, { owner, repo });
+                }
+              }
+            }
+          }
+        }
+      }
+    }`, { owner, repo });
     });
 }
 
