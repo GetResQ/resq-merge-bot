@@ -497,6 +497,19 @@ function processQueueForMergingCommand(pr, repo) {
         try {
             yield mutations_1.mergeBranch(pr.head.ref, pr.base.ref, repo.node_id);
             core.info("Make PR up-to-date");
+            try {
+                yield mutations_1.mergePr({
+                    title: pr.title,
+                    number: pr.number,
+                    baseRef: { name: pr.base.ref },
+                    headRef: { name: pr.head.ref },
+                }, repo.node_id);
+            }
+            catch (mergePrError) {
+                core.info("Unable to merge the PR");
+                core.error(mergePrError);
+            }
+            core.info("Merged PR");
         }
         catch (error) {
             if (error.message === 'Failed to merge: "Already merged"') {
@@ -514,8 +527,8 @@ function processQueueForMergingCommand(pr, repo) {
                     core.error(mergePrError);
                 }
             }
-            mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id, repo.node_id);
         }
+        mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id, repo.node_id);
     });
 }
 exports.processQueueForMergingCommand = processQueueForMergingCommand;
