@@ -106,11 +106,11 @@ export async function processQueueForMergingCommand(
         },
         repo.node_id
       )
+      core.info("Merged PR")
     } catch (mergePrError) {
       core.info("Unable to merge the PR")
       core.error(mergePrError)
     }
-    core.info("Merged PR")
   } catch (error) {
     if (error.message === 'Failed to merge: "Already merged"') {
       core.info("PR already up-to-date.")
