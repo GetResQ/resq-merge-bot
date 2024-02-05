@@ -506,7 +506,7 @@ function processQueueForMergingCommand(pr, repo) {
             return;
         }
         const latestCommit = mergingPr.commits.nodes[0].commit;
-        core.info(String(latestCommit));
+        core.info(JSON.stringify(latestCommit));
         const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
             var _a;
             const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
