@@ -71,7 +71,7 @@ export async function processQueueForMergingCommand(
     return
   }
   const mergingPr = mergingLabel.pullRequests.nodes[0]
-  const latestCommit = mergingPr.commits.nodes.commit
+  const latestCommit = mergingPr.commits.nodes[0].commit
 
   const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
     (node) => {

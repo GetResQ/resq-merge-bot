@@ -339,7 +339,7 @@ function processNonPendingStatus(repo, commit, state) {
             return;
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
-        const latestCommit = mergingPr.commits.nodes.commit;
+        const latestCommit = mergingPr.commits.nodes[0].commit;
         if (commit.node_id !== latestCommit.id) {
             // Commit that trigger this hook is not the latest commit of the merging PR
             return;
@@ -504,7 +504,7 @@ function processQueueForMergingCommand(pr, repo) {
             return;
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
-        const latestCommit = mergingPr.commits.nodes.commit;
+        const latestCommit = mergingPr.commits.nodes[0].commit;
         const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
             const status = node.checkRuns.nodes[0].status;
             return status === "COMPLETED" || status === null;
