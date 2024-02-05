@@ -18,4 +18,4 @@ jobs:
         id: test-action
         uses: ./
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: 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
