@@ -553,8 +553,8 @@ function processQueueForMergingCommand(pr, repo) {
 }
 exports.processQueueForMergingCommand = processQueueForMergingCommand;
 /**
- * Fetch all the data for processing bot command webhook
- * @param owner Organization name
+ * Fetch all the data for processing success status check webhook
+ * @param owner Organzation name
  * @param repo Repository name
  */
 function fetchData(owner, repo) {
