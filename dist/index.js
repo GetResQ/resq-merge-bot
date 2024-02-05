@@ -466,6 +466,7 @@ const labels_1 = __nccwpck_require__(579);
  * @param repo Reposotiry data from the webhook
  */
 function processQueueForMergingCommand(pr, repo) {
+    var _a, _b, _c;
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         // Remove `command:queue-for-merging` label
@@ -499,13 +500,15 @@ function processQueueForMergingCommand(pr, repo) {
         // `bot:merging` is already in some other PR. -> Add `bot:queued`
         const labelToAdd = mergingLabel.pullRequests.nodes.length === 0 ? mergingLabel : queuedLabel;
         yield mutations_1.addLabel(labelToAdd, pr.node_id);
+        yield fetchData(repo.owner.login, repo.name);
         // Finish the process if not added `bot:merging`
         if (!labels_1.isBotMergingLabel(labelToAdd)) {
             return;
         }
-        const mergingPr = labelToAdd.pullRequests.nodes[0];
-        const latestCommit = mergingPr.commits.nodes[0].commit;
-        const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
+        const mergeLabel = labelNodes.find(labels_1.isBotMergingLabel);
+        const mergingPr = (_a = mergeLabel === null || mergeLabel === void 0 ? void 0 : mergeLabel.pullRequests) === null || _a === void 0 ? void 0 : _a.nodes[0];
+        const latestCommit = (_c = (_b = mergingPr === null || mergingPr === void 0 ? void 0 : mergingPr.commits) === null || _b === void 0 ? void 0 : _b.nodes[0]) === null || _c === void 0 ? void 0 : _c.commit;
+        const isAllRequiredCheckPassed = latestCommit === null || latestCommit === void 0 ? void 0 : latestCommit.checkSuites.nodes.every((node) => {
             const status = node.checkRuns.nodes[0].status;
             return status === "COMPLETED" || status === null;
         });
