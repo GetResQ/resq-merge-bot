@@ -507,9 +507,9 @@ function processQueueForMergingCommand(pr, repo) {
         }
         const latestCommit = mergingPr.commits.nodes[0].commit;
         const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
-            var _a;
+            var _a, _b;
             let status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
-            if (node.checkRuns.nodes[0].name === "merge-queue") {
+            if (((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name) === "merge-queue") {
                 status = "COMPLETED";
             }
             return status === "COMPLETED" || status === null || status === undefined;
