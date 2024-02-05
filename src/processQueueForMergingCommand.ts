@@ -77,7 +77,7 @@ export async function processQueueForMergingCommand(
   const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
     (node) => {
       const status = node?.checkRuns?.nodes[0]?.status
-      return status === "COMPLETED" || status === null
+      return status === "COMPLETED" || status === null || status === undefined
     }
   )
   if (!isAllRequiredCheckPassed) {

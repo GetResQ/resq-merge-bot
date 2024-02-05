@@ -509,7 +509,7 @@ function processQueueForMergingCommand(pr, repo) {
         const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
             var _a, _b;
             const status = (_b = (_a = node === null || node === void 0 ? void 0 : node.checkRuns) === null || _a === void 0 ? void 0 : _a.nodes[0]) === null || _b === void 0 ? void 0 : _b.status;
-            return status === "COMPLETED" || status === null;
+            return status === "COMPLETED" || status === null || status === undefined;
         });
         if (!isAllRequiredCheckPassed) {
             mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id, repo.node_id);
