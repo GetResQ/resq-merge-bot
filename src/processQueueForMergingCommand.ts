@@ -81,6 +81,7 @@ export async function processQueueForMergingCommand(
     }
   )
   if (!isAllRequiredCheckPassed) {
+    core.info("Some Check has not yet completed.")
     stopMergingCurrentPrAndProcessNextPrInQueue(
       mergingLabel,
       queuedLabel,
