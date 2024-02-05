@@ -65,16 +65,14 @@ export async function processQueueForMergingCommand(
     mergingLabel.pullRequests.nodes.length === 0 ? mergingLabel : queuedLabel
 
   await addLabel(labelToAdd, pr.node_id)
-  await fetchData(repo.owner.login, repo.name)
 
   // Finish the process if not added `bot:merging`
   if (!isBotMergingLabel(labelToAdd)) {
     return
   }
 
-  const mergeLabel = labelNodes.find(isBotMergingLabel)
-  const mergingPr = mergeLabel?.pullRequests?.nodes[0]
-  const latestCommit = mergingPr?.commits?.nodes[0]?.commit
+  const mergingPr = commandLabel.pullRequests.nodes[0]
+  const latestCommit = mergingPr.commits.nodes[0].commit
 
   const isAllRequiredCheckPassed = latestCommit?.checkSuites.nodes.every(
     (node) => {
