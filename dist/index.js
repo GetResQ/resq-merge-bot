@@ -333,12 +333,13 @@ function processNonPendingStatus(repo, commit, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
+        const queuelabel = labelNodes.find(labels_1.isBotQueuedLabel);
         if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
             // No merging PR to process
             return;
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
-        const latestCommit = mergingPr.commits.nodes.commit;
+        const latestCommit = mergingPr.commits.nodes[0].commit;
         if (commit.node_id !== latestCommit.id) {
             // Commit that trigger this hook is not the latest commit of the merging PR
             return;
@@ -348,26 +349,23 @@ function processNonPendingStatus(repo, commit, state) {
                 const status = node.checkRuns.nodes[0].status;
                 return status === "COMPLETED" || status === null;
             });
-            if (!isAllRequiredCheckPassed) {
-                // Some required check is still pending
-                return;
-            }
             core.info("##### ALL CHECK PASS");
-            try {
-                yield mutations_1.mergePr(mergingPr, repo.node_id);
-                // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
-            }
-            catch (error) {
-                core.info("Unable to merge the PR.");
-                core.error(error);
+            if (isAllRequiredCheckPassed) {
+                try {
+                    yield mutations_1.mergePr(mergingPr, repo.node_id);
+                    // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
+                }
+                catch (error) {
+                    core.info("Unable to merge the PR.");
+                    core.error(error);
+                }
             }
         }
-        const queuedLabel = labelNodes.find(labels_1.isBotQueuedLabel);
-        if (!queuedLabel) {
+        if (!queuelabel) {
             yield mutations_1.removeLabel(mergingLabel, mergingPr.id);
             return;
         }
-        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, mergingPr.id, repo.node_id);
+        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, mergingPr.id, repo.node_id);
     });
 }
 exports.processNonPendingStatus = processNonPendingStatus;
@@ -468,6 +466,7 @@ const labels_1 = __nccwpck_require__(579);
  * @param repo Reposotiry data from the webhook
  */
 function processQueueForMergingCommand(pr, repo) {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         // Remove `command:queue-for-merging` label
@@ -475,6 +474,7 @@ function processQueueForMergingCommand(pr, repo) {
         if (!commandLabel) {
             return;
         }
+        const mergingPr = (_a = commandLabel === null || commandLabel === void 0 ? void 0 : commandLabel.pullRequests) === null || _a === void 0 ? void 0 : _a.nodes[0];
         yield mutations_1.removeLabel(commandLabel, pr.node_id);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
         const queuedLabel = labelNodes.find(labels_1.isBotQueuedLabel);
@@ -503,6 +503,20 @@ function processQueueForMergingCommand(pr, repo) {
         yield mutations_1.addLabel(labelToAdd, pr.node_id);
         // Finish the process if not added `bot:merging`
         if (!labels_1.isBotMergingLabel(labelToAdd)) {
+            return;
+        }
+        const latestCommit = mergingPr.commits.nodes[0].commit;
+        const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
+            var _a, _b;
+            let status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
+            if (((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name) === "merge-queue") {
+                status = "COMPLETED";
+            }
+            return status === "COMPLETED" || status === null || status === undefined;
+        });
+        if (!isAllRequiredCheckPassed) {
+            core.info("Some Check has not yet completed.");
+            mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id, repo.node_id);
             return;
         }
         // Try to make the PR up-to-date
@@ -545,48 +559,51 @@ function processQueueForMergingCommand(pr, repo) {
 }
 exports.processQueueForMergingCommand = processQueueForMergingCommand;
 /**
- * Fetch all the data for processing bot command webhook
- * @param owner Organization name
+ * Fetch all the data for processing success status check webhook
+ * @param owner Organzation name
  * @param repo Repository name
  */
 function fetchData(owner, repo) {
     return __awaiter(this, void 0, void 0, function* () {
         return graphqlClient_1.graphqlClient(`query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
-                 nodes {
-                   id
-                   title
-                   number
-                   baseRef {
-                     name
+      repository(owner:$owner, name:$repo) {
+        labels(last: 50) {
+          nodes {
+            id
+            name
+            pullRequests(first: 20) {
+              nodes {
+                id
+                number
+                title
+                baseRef {
+                  name
+                }
+                headRef {
+                  name
+                }
+                commits(last: 1) {
+                  nodes {
+                   commit {
+                     checkSuites(first: 10) {
+                       nodes {
+                         checkRuns(first:10) {
+                           nodes {
+                             status
+                             name
+                           }
+                         }
+                       }
+                     }
                    }
-                   headRef {
-                     name
-                   }
-                   commits(last: 1) {
-                    nodes {
-                      commit {
-                        id
-                        status {
-                          contexts {
-                            context
-                            state
-                          }
-                        }
-                      }
-                    }
                   }
-                 }
-               }
-             }
-           }
-         }
-       }`, { owner, repo });
+                }
+              }
+            }
+          }
+        }
+      }
+    }`, { owner, repo });
     });
 }
 
