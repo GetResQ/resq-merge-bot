@@ -466,7 +466,7 @@ const labels_1 = __nccwpck_require__(579);
  * @param repo Reposotiry data from the webhook
  */
 function processQueueForMergingCommand(pr, repo) {
-    var _a, _b, _c;
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         // Remove `command:queue-for-merging` label
@@ -505,10 +505,11 @@ function processQueueForMergingCommand(pr, repo) {
         if (!labels_1.isBotMergingLabel(labelToAdd)) {
             return;
         }
-        const latestCommit = (_c = (_b = mergingPr === null || mergingPr === void 0 ? void 0 : mergingPr.commits) === null || _b === void 0 ? void 0 : _b.nodes[0]) === null || _c === void 0 ? void 0 : _c.commit;
+        const latestCommit = mergingPr.commits.nodes[0].commit;
+        core.info(latestCommit.toString());
         const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
-            var _a, _b;
-            const status = (_b = (_a = node === null || node === void 0 ? void 0 : node.checkRuns) === null || _a === void 0 ? void 0 : _a.nodes[0]) === null || _b === void 0 ? void 0 : _b.status;
+            var _a;
+            const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
             return status === "COMPLETED" || status === null || status === undefined;
         });
         if (!isAllRequiredCheckPassed) {
