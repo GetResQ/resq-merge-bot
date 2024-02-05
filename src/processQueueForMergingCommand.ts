@@ -34,6 +34,7 @@ export async function processQueueForMergingCommand(
   if (!commandLabel) {
     return
   }
+  const mergingPr = commandLabel?.pullRequests?.nodes[0]
   await removeLabel(commandLabel, pr.node_id)
 
   const mergingLabel = labelNodes.find(isBotMergingLabel)
@@ -71,10 +72,45 @@ export async function processQueueForMergingCommand(
     return
   }
 
+  const latestCommit = mergingPr.commits.nodes[0].commit
+  const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
+    (node) => {
+      let status = node.checkRuns.nodes[0]?.status
+      if (node.checkRuns.nodes[0]?.name === "merge-queue") {
+        status = "COMPLETED"
+      }
+      return status === "COMPLETED" || status === null || status === undefined
+    }
+  )
+  if (!isAllRequiredCheckPassed) {
+    core.info("Some Check has not yet completed.")
+    stopMergingCurrentPrAndProcessNextPrInQueue(
+      mergingLabel,
+      queuedLabel,
+      pr.node_id,
+      repo.node_id
+    )
+    return
+  }
   // Try to make the PR up-to-date
   try {
     await mergeBranch(pr.head.ref, pr.base.ref, repo.node_id)
     core.info("Make PR up-to-date")
+    try {
+      await mergePr(
+        {
+          title: pr.title,
+          number: pr.number,
+          baseRef: { name: pr.base.ref },
+          headRef: { name: pr.head.ref },
+        },
+        repo.node_id
+      )
+    } catch (mergePrError) {
+      core.info("Unable to merge the PR")
+      core.error(mergePrError)
+    }
+    core.info("Merged PR")
   } catch (error) {
     if (error.message === 'Failed to merge: "Already merged"') {
       core.info("PR already up-to-date.")
@@ -93,18 +129,18 @@ export async function processQueueForMergingCommand(
         core.error(mergePrError)
       }
     }
-    stopMergingCurrentPrAndProcessNextPrInQueue(
-      mergingLabel,
-      queuedLabel,
-      pr.node_id,
-      repo.node_id
-    )
   }
+  stopMergingCurrentPrAndProcessNextPrInQueue(
+    mergingLabel,
+    queuedLabel,
+    pr.node_id,
+    repo.node_id
+  )
 }
 
 /**
- * Fetch all the data for processing bot command webhook
- * @param owner Organization name
+ * Fetch all the data for processing success status check webhook
+ * @param owner Organzation name
  * @param repo Repository name
  */
 async function fetchData(
@@ -119,8 +155,27 @@ async function fetchData(
         pullRequests: {
           nodes: {
             id: string
+            number: number
+            title: string
             baseRef: { name: string }
             headRef: { name: string }
+            commits: {
+              nodes: {
+                commit: {
+                  id: string
+                  checkSuites: {
+                    nodes: {
+                      checkRuns: {
+                        nodes: {
+                          status: string
+                          name: string
+                        }[]
+                      }
+                    }[]
+                  }
+                }
+              }[]
+            }
           }[]
         }
       }[]
@@ -129,26 +184,44 @@ async function fetchData(
 }> {
   return graphqlClient(
     `query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
-                 nodes {
-                   id
-                   baseRef {
-                     name
+      repository(owner:$owner, name:$repo) {
+        labels(last: 50) {
+          nodes {
+            id
+            name
+            pullRequests(first: 20) {
+              nodes {
+                id
+                number
+                title
+                baseRef {
+                  name
+                }
+                headRef {
+                  name
+                }
+                commits(last: 1) {
+                  nodes {
+                   commit {
+                     checkSuites(first: 10) {
+                       nodes {
+                         checkRuns(first:10) {
+                           nodes {
+                             status
+                             name
+                           }
+                         }
+                       }
+                     }
                    }
-                   headRef {
-                     name
-                   }
-                 }
-               }
-             }
-           }
-         }
-       }`,
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }`,
     { owner, repo }
   )
 }
