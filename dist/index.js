@@ -474,6 +474,7 @@ function processQueueForMergingCommand(pr, repo) {
         if (!commandLabel) {
             return;
         }
+        const mergingPr = (_a = commandLabel === null || commandLabel === void 0 ? void 0 : commandLabel.pullRequests) === null || _a === void 0 ? void 0 : _a.nodes[0];
         yield mutations_1.removeLabel(commandLabel, pr.node_id);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
         const queuedLabel = labelNodes.find(labels_1.isBotQueuedLabel);
@@ -504,7 +505,6 @@ function processQueueForMergingCommand(pr, repo) {
         if (!labels_1.isBotMergingLabel(labelToAdd)) {
             return;
         }
-        const mergingPr = (_a = commandLabel === null || commandLabel === void 0 ? void 0 : commandLabel.pullRequests) === null || _a === void 0 ? void 0 : _a.nodes[0];
         const latestCommit = (_c = (_b = mergingPr === null || mergingPr === void 0 ? void 0 : mergingPr.commits) === null || _b === void 0 ? void 0 : _b.nodes[0]) === null || _c === void 0 ? void 0 : _c.commit;
         const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
             var _a, _b;
@@ -512,6 +512,7 @@ function processQueueForMergingCommand(pr, repo) {
             return status === "COMPLETED" || status === null || status === undefined;
         });
         if (!isAllRequiredCheckPassed) {
+            core.info("Some Check has not yet completed.");
             mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id, repo.node_id);
             return;
         }

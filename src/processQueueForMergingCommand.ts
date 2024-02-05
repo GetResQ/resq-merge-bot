@@ -34,6 +34,7 @@ export async function processQueueForMergingCommand(
   if (!commandLabel) {
     return
   }
+  const mergingPr = commandLabel?.pullRequests?.nodes[0]
   await removeLabel(commandLabel, pr.node_id)
 
   const mergingLabel = labelNodes.find(isBotMergingLabel)
@@ -71,7 +72,6 @@ export async function processQueueForMergingCommand(
     return
   }
 
-  const mergingPr = commandLabel?.pullRequests?.nodes[0]
   const latestCommit = mergingPr?.commits?.nodes[0]?.commit
 
   const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
