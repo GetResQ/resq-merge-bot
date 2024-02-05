@@ -530,12 +530,12 @@ function processQueueForMergingCommand(pr, repo) {
                     baseRef: { name: pr.base.ref },
                     headRef: { name: pr.head.ref },
                 }, repo.node_id);
+                core.info("Merged PR");
             }
             catch (mergePrError) {
                 core.info("Unable to merge the PR");
                 core.error(mergePrError);
             }
-            core.info("Merged PR");
         }
         catch (error) {
             if (error.message === 'Failed to merge: "Already merged"') {
