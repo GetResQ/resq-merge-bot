@@ -73,10 +73,12 @@ export async function processQueueForMergingCommand(
   }
 
   const latestCommit = mergingPr.commits.nodes[0].commit
-  core.info(JSON.stringify(latestCommit))
   const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
     (node) => {
-      const status = node.checkRuns.nodes[0]?.status
+      let status = node.checkRuns.nodes[0]?.status
+      if (node.checkRuns.nodes[0].name === "merge-queue") {
+        status = "COMPLETED"
+      }
       return status === "COMPLETED" || status === null || status === undefined
     }
   )
