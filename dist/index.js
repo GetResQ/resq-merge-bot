@@ -333,6 +333,7 @@ function processNonPendingStatus(repo, commit, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
+        const queuelabel = labelNodes.find(labels_1.isBotQueuedLabel);
         if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
             // No merging PR to process
             return;
@@ -348,26 +349,23 @@ function processNonPendingStatus(repo, commit, state) {
                 const status = node.checkRuns.nodes[0].status;
                 return status === "COMPLETED" || status === null;
             });
-            if (!isAllRequiredCheckPassed) {
-                // Some required check is still pending
-                return;
-            }
             core.info("##### ALL CHECK PASS");
-            try {
-                yield mutations_1.mergePr(mergingPr, repo.node_id);
-                // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
-            }
-            catch (error) {
-                core.info("Unable to merge the PR.");
-                core.error(error);
+            if (isAllRequiredCheckPassed) {
+                try {
+                    yield mutations_1.mergePr(mergingPr, repo.node_id);
+                    // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
+                }
+                catch (error) {
+                    core.info("Unable to merge the PR.");
+                    core.error(error);
+                }
             }
         }
-        const queuedLabel = labelNodes.find(labels_1.isBotQueuedLabel);
-        if (!queuedLabel) {
+        if (!queuelabel) {
             yield mutations_1.removeLabel(mergingLabel, mergingPr.id);
             return;
         }
-        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, mergingPr.id, repo.node_id);
+        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, mergingPr.id, repo.node_id);
     });
 }
 exports.processNonPendingStatus = processNonPendingStatus;
@@ -505,7 +503,7 @@ function processQueueForMergingCommand(pr, repo) {
         if (!labels_1.isBotMergingLabel(labelToAdd)) {
             return;
         }
-        const mergingPr = labelToAdd.pullRequests.nodes[0];
+        const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes.commit;
         const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
             const status = node.checkRuns.nodes[0].status;
