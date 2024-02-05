@@ -503,7 +503,7 @@ function processQueueForMergingCommand(pr, repo) {
         if (!labels_1.isBotMergingLabel(labelToAdd)) {
             return;
         }
-        const mergingPr = mergingLabel.pullRequests.nodes[0];
+        const mergingPr = labelToAdd.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
         const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
             const status = node.checkRuns.nodes[0].status;
