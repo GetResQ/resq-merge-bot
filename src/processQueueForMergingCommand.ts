@@ -73,7 +73,7 @@ export async function processQueueForMergingCommand(
   }
 
   const latestCommit = mergingPr.commits.nodes[0].commit
-  core.info(latestCommit.toString())
+  core.info(String(latestCommit))
   const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
     (node) => {
       const status = node.checkRuns.nodes[0]?.status
