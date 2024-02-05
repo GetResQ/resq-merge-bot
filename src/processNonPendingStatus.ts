@@ -27,6 +27,7 @@ export async function processNonPendingStatus(
   } = await fetchData(repo.owner.login, repo.name)
 
   const mergingLabel = labelNodes.find(isBotMergingLabel)
+  const queuelabel = labelNodes.find(isBotQueuedLabel)
 
   if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
     // No merging PR to process
@@ -34,7 +35,7 @@ export async function processNonPendingStatus(
   }
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
-  const latestCommit = mergingPr.commits.nodes.commit
+  const latestCommit = mergingPr.commits.nodes[0].commit
   if (commit.node_id !== latestCommit.id) {
     // Commit that trigger this hook is not the latest commit of the merging PR
     return
@@ -47,29 +48,25 @@ export async function processNonPendingStatus(
         return status === "COMPLETED" || status === null
       }
     )
-    if (!isAllRequiredCheckPassed) {
-      // Some required check is still pending
-      return
-    }
-
     core.info("##### ALL CHECK PASS")
-    try {
-      await mergePr(mergingPr, repo.node_id)
-      // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
-    } catch (error) {
-      core.info("Unable to merge the PR.")
-      core.error(error)
+    if (isAllRequiredCheckPassed) {
+      try {
+        await mergePr(mergingPr, repo.node_id)
+        // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
+      } catch (error) {
+        core.info("Unable to merge the PR.")
+        core.error(error)
+      }
     }
   }
 
-  const queuedLabel = labelNodes.find(isBotQueuedLabel)
-  if (!queuedLabel) {
+  if (!queuelabel) {
     await removeLabel(mergingLabel, mergingPr.id)
     return
   }
   await stopMergingCurrentPrAndProcessNextPrInQueue(
     mergingLabel,
-    queuedLabel,
+    queuelabel,
     mergingPr.id,
     repo.node_id
   )
@@ -111,7 +108,7 @@ async function fetchData(
                     }[]
                   }
                 }
-              }
+              }[]
             }
           }[]
         }
