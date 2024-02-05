@@ -170,7 +170,7 @@ async function fetchData(
                     }[]
                   }
                 }
-              }
+              }[]
             }
           }[]
         }

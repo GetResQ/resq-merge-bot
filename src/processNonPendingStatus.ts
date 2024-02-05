@@ -108,7 +108,7 @@ async function fetchData(
                     }[]
                   }
                 }
-              }
+              }[]
             }
           }[]
         }
