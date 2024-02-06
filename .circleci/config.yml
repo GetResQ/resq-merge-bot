@@ -10,7 +10,7 @@ jobs:
 
       - run:
           name: Failing Test
-          command: exit 0
+          command: exit 1
 
 workflows:
   version: 2
