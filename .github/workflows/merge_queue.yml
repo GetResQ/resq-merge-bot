@@ -10,12 +10,6 @@ jobs:
   merge-queue:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@v4
-
-      - name: Test Local Action
-        id: test-action
-        uses: ./
+      - uses: GetResQ/resq-merge-bot@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
