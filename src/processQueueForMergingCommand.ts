@@ -90,7 +90,6 @@ export async function processQueueForMergingCommand(
   try {
     await mergeBranch({
       id: pr.id.toString(),
-      title: pr.title,
       baseRef: { name: pr.base.ref },
       headRef: { name: pr.head.ref },
     })
@@ -101,7 +100,6 @@ export async function processQueueForMergingCommand(
       try {
         await mergePr({
           id: pr.id.toString(),
-          title: pr.title,
           baseRef: { name: pr.base.ref },
           headRef: { name: pr.head.ref },
         })
