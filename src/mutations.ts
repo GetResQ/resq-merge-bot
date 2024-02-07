@@ -106,15 +106,12 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
       await mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId)
       core.info("PR successfully made up-to-date")
       try {
-        await mergePr(
-          {
-            title: queuedPr.title,
-            number: queuedPr.number,
-            baseRef: queuedPr.baseRef,
-            headRef: queuedPr.headRef,
-          },
-          repoId
-        )
+        await mergePr({
+          id: queuedPr.id,
+          title: queuedPr.title,
+          baseRef: queuedPr.baseRef,
+          headRef: queuedPr.headRef,
+        })
       } catch (mergePrError) {
         core.info("Unable to merge the PR")
         core.error(mergePrError)
@@ -134,19 +131,21 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
  * @param pr Pull request object
  * @param repoId
  */
-export async function mergePr(
-  pr: {
-    number: number
-    title: string
-    baseRef: { name: string }
-    headRef: { name: string }
-  },
-  repoId: string
-): Promise<void> {
-  await mergeBranch(
-    pr.baseRef.name,
-    pr.headRef.name,
-    repoId,
-    `Merge pull request #${pr.number} from ${pr.headRef.name}\n\n${pr.title}`
+export async function mergePr(pr: {
+  id: string
+  title: string
+  baseRef: { name: string }
+  headRef: { name: string }
+}): Promise<void> {
+  await graphqlClient(
+    `mutation MergePullRequest($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+      mergePullRequest(input: {pullRequestId: $pullRequestId, mergeMethod: $mergeMethod}) {
+        __typename
+      }
+    }`,
+    {
+      pullRequestId: pr.id,
+      mergeMethod: "SQUASH",
+    }
   )
 }

@@ -51,7 +51,7 @@ export async function processNonPendingStatus(
     core.info("##### ALL CHECK PASS")
     if (isAllRequiredCheckPassed) {
       try {
-        await mergePr(mergingPr, repo.node_id)
+        await mergePr(mergingPr)
         // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
       } catch (error) {
         core.info("Unable to merge the PR.")
