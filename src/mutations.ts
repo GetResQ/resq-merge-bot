@@ -10,7 +10,6 @@ import { Label } from "./labels"
  */
 export async function mergeBranch(pr: {
   id: string
-  title: string
   baseRef: { name: string }
   headRef: { name: string }
 }): Promise<void> {
@@ -117,7 +116,6 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
  */
 export async function mergePr(pr: {
   id: string
-  title: string
   baseRef: { name: string }
   headRef: { name: string }
 }): Promise<void> {
