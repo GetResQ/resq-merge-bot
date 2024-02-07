@@ -88,8 +88,6 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
         id: string
         headRef: { name: string }
         baseRef: { name: string }
-        title: string
-        number: number
       }[]
     }
   },
@@ -105,18 +103,7 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
     try {
       await mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId)
       core.info("PR successfully made up-to-date")
-      try {
-        await mergePr({
-          id: queuedPr.id,
-          title: queuedPr.title,
-          baseRef: queuedPr.baseRef,
-          headRef: queuedPr.headRef,
-        })
-      } catch (mergePrError) {
-        core.info("Unable to merge the PR")
-        core.error(mergePrError)
-      }
-      await removeLabel(mergingLabel, queuedPr.id)
+      break
     } catch (error) {
       core.info(
         "Unable to update the queued PR. Will process the next item in the queue."
