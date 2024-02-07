@@ -67,8 +67,7 @@ export async function processNonPendingStatus(
   await stopMergingCurrentPrAndProcessNextPrInQueue(
     mergingLabel,
     queuelabel,
-    mergingPr.id,
-    repo.node_id
+    mergingPr.id
   )
 }
 
