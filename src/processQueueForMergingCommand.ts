@@ -88,7 +88,12 @@ export async function processQueueForMergingCommand(
   }
   // Try to make the PR up-to-date
   try {
-    await mergeBranch(pr.head.ref, pr.base.ref, repo.node_id)
+    await mergeBranch({
+      id: pr.id.toString(),
+      title: pr.title,
+      baseRef: { name: pr.base.ref },
+      headRef: { name: pr.head.ref },
+    })
     core.info("Make PR up-to-date")
   } catch (error) {
     if (error.message === 'Failed to merge: "Already merged"') {
@@ -109,8 +114,7 @@ export async function processQueueForMergingCommand(
   stopMergingCurrentPrAndProcessNextPrInQueue(
     mergingLabel,
     queuedLabel,
-    pr.node_id,
-    repo.node_id
+    pr.node_id
   )
 }
 
