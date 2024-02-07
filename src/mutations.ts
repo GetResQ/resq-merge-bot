@@ -127,7 +127,7 @@ export async function mergePr(pr: {
     }`,
     {
       pullRequestId: pr.id,
-      mergeMethod: "SQUASH",
+      mergeMethod: "REBASE",
     }
   )
 }
