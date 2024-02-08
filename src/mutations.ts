@@ -121,13 +121,13 @@ export async function mergePr(pr: {
 }): Promise<void> {
   await graphqlClient(
     `mutation MergePullRequest($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
-      mergePullRequest(input: {pullRequestId: $pullRequestId, mergeMethod: $mergeMethod}) {
+      mergePullRequest(input: $input) {
         __typename
       }
     }`,
     {
-      pullRequestId: pr.id,
-      mergeMethod: "REBASE",
+      input: { pullRequestId: pr.id, mergeMethod: "SQUASH" },
     }
   )
+  core.info(`PR ${pr.id} attempted to merge`)
 }
