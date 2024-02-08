@@ -86,6 +86,8 @@ export async function processQueueForMergingCommand(
     core.info("Some Check has not yet completed.")
     return
   }
+  core.info("test log")
+  core.info(pr.title)
   // Try to make the PR up-to-date
   try {
     await mergeBranch({
