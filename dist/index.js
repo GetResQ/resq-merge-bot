@@ -179,16 +179,15 @@ const graphqlClient_1 = __nccwpck_require__(10);
  * @param repoId Repository ID
  * @param [commitMessage] Commit message
  */
-function mergeBranch(base, head, repoId, commitMessage) {
+function mergeBranch(pr) {
     return __awaiter(this, void 0, void 0, function* () {
-        const requiredInput = { base, head, repositoryId: repoId };
-        yield graphqlClient_1.graphqlClient(`mutation updateBranch($input: MergeBranchInput!) {
-      mergeBranch(input: $input) {
+        yield graphqlClient_1.graphqlClient(`mutation UpdatePullRequest($pullRequestId: ID!, $baseRefName: String!) {
+      updatePullRequest(input: {pullRequestId: $pullRequestId, baseRefName: $baseRefName}) {
         __typename
       }
     }`, {
-            input: commitMessage
-                ? Object.assign(Object.assign({}, requiredInput), { commitMessage }) : requiredInput,
+            pullRequestId: pr.id,
+            baseRefName: pr.baseRef.name,
         });
     });
 }
@@ -236,7 +235,7 @@ exports.addLabel = addLabel;
  * @param mergingPrId ID of PR that has `bot:merging` label
  * @param repoId ID of repository
  */
-function stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, mergingPrId, repoId) {
+function stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, mergingPrId) {
     return __awaiter(this, void 0, void 0, function* () {
         yield removeLabel(mergingLabel, mergingPrId);
         const queuedPrs = queuedLabel.pullRequests.nodes;
@@ -244,21 +243,9 @@ function stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, 
             yield removeLabel(queuedLabel, queuedPr.id);
             yield addLabel(mergingLabel, queuedPr.id);
             try {
-                yield mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId);
+                yield mergeBranch(queuedPr);
                 core.info("PR successfully made up-to-date");
-                try {
-                    yield mergePr({
-                        title: queuedPr.title,
-                        number: queuedPr.number,
-                        baseRef: queuedPr.baseRef,
-                        headRef: queuedPr.headRef,
-                    }, repoId);
-                }
-                catch (mergePrError) {
-                    core.info("Unable to merge the PR");
-                    core.error(mergePrError);
-                }
-                yield removeLabel(mergingLabel, queuedPr.id);
+                break;
             }
             catch (error) {
                 core.info("Unable to update the queued PR. Will process the next item in the queue.");
@@ -273,9 +260,15 @@ exports.stopMergingCurrentPrAndProcessNextPrInQueue = stopMergingCurrentPrAndPro
  * @param pr Pull request object
  * @param repoId
  */
-function mergePr(pr, repoId) {
+function mergePr(pr) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield mergeBranch(pr.baseRef.name, pr.headRef.name, repoId, `Merge pull request #${pr.number} from ${pr.headRef.name}\n\n${pr.title}`);
+        yield graphqlClient_1.graphqlClient(`mutation MergePullRequest($pullRequestId: ID!) {
+      mergePullRequest(input: {pullRequestId: $pullRequestId, mergeMethod: SQUASH}) {
+        __typename
+      }
+    }`, {
+            input: { pullRequestId: pr.id },
+        });
     });
 }
 exports.mergePr = mergePr;
@@ -333,7 +326,6 @@ function processNonPendingStatus(repo, commit, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
-        const queuelabel = labelNodes.find(labels_1.isBotQueuedLabel);
         if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
             // No merging PR to process
             return;
@@ -346,26 +338,32 @@ function processNonPendingStatus(repo, commit, state) {
         }
         if (state === "success") {
             const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
-                const status = node.checkRuns.nodes[0].status;
-                return status === "COMPLETED" || status === null;
+                var _a, _b;
+                let status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
+                if (((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name) === "merge-queue") {
+                    status = "COMPLETED";
+                }
+                return status === "COMPLETED" || status === null || status === undefined;
             });
+            if (!isAllRequiredCheckPassed) {
+                return;
+            }
             core.info("##### ALL CHECK PASS");
-            if (isAllRequiredCheckPassed) {
-                try {
-                    yield mutations_1.mergePr(mergingPr, repo.node_id);
-                    // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
-                }
-                catch (error) {
-                    core.info("Unable to merge the PR.");
-                    core.error(error);
-                }
+            try {
+                yield mutations_1.mergePr(mergingPr);
+                // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
+            }
+            catch (error) {
+                core.info("Unable to merge the PR.");
+                core.error(error);
             }
         }
+        const queuelabel = labelNodes.find(labels_1.isBotQueuedLabel);
         if (!queuelabel) {
             yield mutations_1.removeLabel(mergingLabel, mergingPr.id);
             return;
         }
-        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, mergingPr.id, repo.node_id);
+        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, mergingPr.id);
     });
 }
 exports.processNonPendingStatus = processNonPendingStatus;
@@ -516,37 +514,28 @@ function processQueueForMergingCommand(pr, repo) {
         });
         if (!isAllRequiredCheckPassed) {
             core.info("Some Check has not yet completed.");
-            mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id, repo.node_id);
             return;
         }
+        core.info("Test log");
+        core.info(pr.title);
         // Try to make the PR up-to-date
         try {
-            yield mutations_1.mergeBranch(pr.head.ref, pr.base.ref, repo.node_id);
+            yield mutations_1.mergeBranch({
+                id: pr.id.toString(),
+                baseRef: { name: pr.base.ref },
+                headRef: { name: pr.head.ref },
+            });
             core.info("Make PR up-to-date");
-            try {
-                yield mutations_1.mergePr({
-                    title: pr.title,
-                    number: pr.number,
-                    baseRef: { name: pr.base.ref },
-                    headRef: { name: pr.head.ref },
-                }, repo.node_id);
-                core.info("Merged PR");
-            }
-            catch (mergePrError) {
-                core.info("Unable to merge the PR");
-                core.error(mergePrError);
-            }
         }
         catch (error) {
             if (error.message === 'Failed to merge: "Already merged"') {
                 core.info("PR already up-to-date.");
                 try {
                     yield mutations_1.mergePr({
-                        title: pr.title,
-                        number: pr.number,
+                        id: pr.id.toString(),
                         baseRef: { name: pr.base.ref },
                         headRef: { name: pr.head.ref },
-                    }, repo.node_id);
+                    });
                 }
                 catch (mergePrError) {
                     core.info("Unable to merge the PR");
@@ -554,7 +543,7 @@ function processQueueForMergingCommand(pr, repo) {
                 }
             }
         }
-        mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id, repo.node_id);
+        mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, pr.node_id);
     });
 }
 exports.processQueueForMergingCommand = processQueueForMergingCommand;

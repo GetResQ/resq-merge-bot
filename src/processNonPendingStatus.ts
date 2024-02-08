@@ -27,7 +27,6 @@ export async function processNonPendingStatus(
   } = await fetchData(repo.owner.login, repo.name)
 
   const mergingLabel = labelNodes.find(isBotMergingLabel)
-  const queuelabel = labelNodes.find(isBotQueuedLabel)
 
   if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
     // No merging PR to process
@@ -44,22 +43,27 @@ export async function processNonPendingStatus(
   if (state === "success") {
     const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
       (node) => {
-        const status = node.checkRuns.nodes[0].status
-        return status === "COMPLETED" || status === null
+        let status = node.checkRuns.nodes[0]?.status
+        if (node.checkRuns.nodes[0]?.name === "merge-queue") {
+          status = "COMPLETED"
+        }
+        return status === "COMPLETED" || status === null || status === undefined
       }
     )
+    if (!isAllRequiredCheckPassed) {
+      return
+    }
     core.info("##### ALL CHECK PASS")
-    if (isAllRequiredCheckPassed) {
-      try {
-        await mergePr(mergingPr, repo.node_id)
-        // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
-      } catch (error) {
-        core.info("Unable to merge the PR.")
-        core.error(error)
-      }
+    try {
+      await mergePr(mergingPr)
+      // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
+    } catch (error) {
+      core.info("Unable to merge the PR.")
+      core.error(error)
     }
   }
 
+  const queuelabel = labelNodes.find(isBotQueuedLabel)
   if (!queuelabel) {
     await removeLabel(mergingLabel, mergingPr.id)
     return
@@ -67,8 +71,7 @@ export async function processNonPendingStatus(
   await stopMergingCurrentPrAndProcessNextPrInQueue(
     mergingLabel,
     queuelabel,
-    mergingPr.id,
-    repo.node_id
+    mergingPr.id
   )
 }
 
