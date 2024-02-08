@@ -86,6 +86,8 @@ export async function processQueueForMergingCommand(
     core.info("Some Check has not yet completed.")
     return
   }
+  core.info("Test log")
+  core.info(pr.title)
   // Try to make the PR up-to-date
   try {
     await mergeBranch({
@@ -94,7 +96,6 @@ export async function processQueueForMergingCommand(
       headRef: { name: pr.head.ref },
     })
     core.info("Make PR up-to-date")
-    core.info("test log")
   } catch (error) {
     if (error.message === 'Failed to merge: "Already merged"') {
       core.info("PR already up-to-date.")
