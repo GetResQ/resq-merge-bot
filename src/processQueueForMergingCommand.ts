@@ -96,7 +96,6 @@ export async function processQueueForMergingCommand(
       headRef: { name: pr.head.ref },
     })
     core.info("Make PR up-to-date")
-    core.info("test log")
   } catch (error) {
     if (error.message === 'Failed to merge: "Already merged"') {
       core.info("PR already up-to-date.")
