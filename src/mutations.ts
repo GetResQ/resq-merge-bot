@@ -8,20 +8,23 @@ import { Label } from "./labels"
  * @param repoId Repository ID
  * @param [commitMessage] Commit message
  */
-export async function mergeBranch(pr: {
-  id: string
-  baseRef: { name: string }
-  headRef: { name: string }
-}): Promise<void> {
+export async function mergeBranch(
+  base: string,
+  head: string,
+  repoId: string,
+  commitMessage?: string
+): Promise<void> {
+  const requiredInput = { base, head, repositoryId: repoId }
   await graphqlClient(
-    `mutation UpdatePullRequest($pullRequestId: ID!, $baseRefName: String!) {
-      updatePullRequest(input: {pullRequestId: $pullRequestId, baseRefName: $baseRefName}) {
+    `mutation updateBranch($input: MergeBranchInput!) {
+      mergeBranch(input: $input) {
         __typename
       }
     }`,
     {
-      pullRequestId: pr.id,
-      baseRefName: pr.baseRef.name,
+      input: commitMessage
+        ? { ...requiredInput, commitMessage }
+        : requiredInput,
     }
   )
 }
@@ -88,7 +91,8 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
       }[]
     }
   },
-  mergingPrId: string
+  mergingPrId: string,
+  repoId: string
 ): Promise<void> {
   await removeLabel(mergingLabel, mergingPrId)
 
@@ -97,7 +101,7 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
     await removeLabel(queuedLabel, queuedPr.id)
     await addLabel(mergingLabel, queuedPr.id)
     try {
-      await mergeBranch(queuedPr)
+      await mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId)
       core.info("PR successfully made up-to-date")
       break
     } catch (error) {
