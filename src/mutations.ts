@@ -119,6 +119,7 @@ export async function mergePr(pr: {
   baseRef: { name: string }
   headRef: { name: string }
 }): Promise<void> {
+  core.info(`PR ${pr.id} attempting to merge`)
   await graphqlClient(
     `mutation MergePullRequest($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
       mergePullRequest(input: $input) {
@@ -129,5 +130,4 @@ export async function mergePr(pr: {
       input: { pullRequestId: pr.id, mergeMethod: "REBASE" },
     }
   )
-  core.info(`PR ${pr.id} attempted to merge`)
 }
