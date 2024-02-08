@@ -99,7 +99,6 @@ export async function processQueueForMergingCommand(
     if (error.message === 'Failed to merge: "Already merged"') {
       core.info("PR already up-to-date.")
       try {
-        core.info(pr.title)
         await mergePr({
           id: pr.id.toString(),
           baseRef: { name: pr.base.ref },
