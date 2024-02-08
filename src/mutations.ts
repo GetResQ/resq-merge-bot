@@ -126,7 +126,7 @@ export async function mergePr(pr: {
       }
     }`,
     {
-      input: { pullRequestId: pr.id, mergeMethod: "SQUASH" },
+      input: { pullRequestId: pr.id, mergeMethod: "REBASE" },
     }
   )
   core.info(`PR ${pr.id} attempted to merge`)
