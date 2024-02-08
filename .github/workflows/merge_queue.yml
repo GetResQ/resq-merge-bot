@@ -10,6 +10,6 @@ jobs:
   merge-queue:
     runs-on: ubuntu-latest
     steps:
-      - uses: GetResQ/resq-merge-bot@main
+      - uses: GetResQ/resq-merge-bot@c8f5b14a39697c224df3ba676ae898f633407b0d
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
