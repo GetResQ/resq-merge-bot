@@ -525,9 +525,10 @@ function processQueueForMergingCommand(pr, repo) {
         catch (error) {
             if (error.message === 'Failed to merge: "Already merged"') {
                 core.info("PR already up-to-date.");
+                core.info(String(pr.id));
                 try {
                     yield mutations_1.mergePr({
-                        id: pr.id,
+                        id: String(pr.id),
                         baseRef: { name: pr.base.ref },
                         headRef: { name: pr.head.ref },
                     });

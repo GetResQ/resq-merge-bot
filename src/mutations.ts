@@ -85,7 +85,7 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
   queuedLabel: Label & {
     pullRequests: {
       nodes: {
-        id: number
+        id: string
         headRef: { name: string }
         baseRef: { name: string }
       }[]
@@ -119,7 +119,7 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
  * @param repoId
  */
 export async function mergePr(pr: {
-  id: number
+  id: string
   baseRef: { name: string }
   headRef: { name: string }
 }): Promise<void> {

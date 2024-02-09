@@ -93,9 +93,10 @@ export async function processQueueForMergingCommand(
   } catch (error) {
     if (error.message === 'Failed to merge: "Already merged"') {
       core.info("PR already up-to-date.")
+      core.info(String(pr.id))
       try {
         await mergePr({
-          id: pr.id,
+          id: String(pr.id),
           baseRef: { name: pr.base.ref },
           headRef: { name: pr.head.ref },
         })
@@ -129,7 +130,7 @@ async function fetchData(
         name: string
         pullRequests: {
           nodes: {
-            id: number
+            id: string
             number: number
             title: string
             baseRef: { name: string }

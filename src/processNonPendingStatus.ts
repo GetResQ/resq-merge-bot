@@ -92,7 +92,7 @@ async function fetchData(
         name: string
         pullRequests: {
           nodes: {
-            id: number
+            id: string
             number: number
             title: string
             baseRef: { name: string }
