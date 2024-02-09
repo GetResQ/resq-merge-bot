@@ -96,7 +96,7 @@ export async function processQueueForMergingCommand(
       core.info(String(pr.id))
       try {
         await mergePr({
-          id: String(pr.id),
+          id: mergingPr.id,
           baseRef: { name: pr.base.ref },
           headRef: { name: pr.head.ref },
         })

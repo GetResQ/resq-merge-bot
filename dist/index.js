@@ -528,7 +528,7 @@ function processQueueForMergingCommand(pr, repo) {
                 core.info(String(pr.id));
                 try {
                     yield mutations_1.mergePr({
-                        id: String(pr.id),
+                        id: mergingPr.id,
                         baseRef: { name: pr.base.ref },
                         headRef: { name: pr.head.ref },
                     });
