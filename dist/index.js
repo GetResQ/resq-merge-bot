@@ -259,16 +259,16 @@ exports.stopMergingCurrentPrAndProcessNextPrInQueue = stopMergingCurrentPrAndPro
 /**
  *
  * @param pr Pull request object
- * @param repoId
  */
 function mergePr(pr) {
     return __awaiter(this, void 0, void 0, function* () {
+        core.info(pr.id);
         yield graphqlClient_1.graphqlClient(`mutation MergePullRequest($pullRequestId: ID!) {
       mergePullRequest(input: {pullRequestId: $pullRequestId, mergeMethod: SQUASH}) {
         __typename
       }
     }`, {
-            input: { pullRequestId: pr.id },
+            pullRequestId: pr.id,
         });
     });
 }
@@ -527,11 +527,7 @@ function processQueueForMergingCommand(pr, repo) {
                 core.info("PR already up-to-date.");
                 core.info(mergingPr.id);
                 try {
-                    yield mutations_1.mergePr({
-                        id: mergingPr.id,
-                        baseRef: { name: pr.base.ref },
-                        headRef: { name: pr.head.ref },
-                    });
+                    yield mutations_1.mergePr(mergingPr);
                 }
                 catch (mergePrError) {
                     core.info("Unable to merge the PR");

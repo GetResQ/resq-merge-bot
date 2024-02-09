@@ -95,11 +95,7 @@ export async function processQueueForMergingCommand(
       core.info("PR already up-to-date.")
       core.info(mergingPr.id)
       try {
-        await mergePr({
-          id: mergingPr.id,
-          baseRef: { name: pr.base.ref },
-          headRef: { name: pr.head.ref },
-        })
+        await mergePr(mergingPr)
       } catch (mergePrError) {
         core.info("Unable to merge the PR")
         core.error(mergePrError)
