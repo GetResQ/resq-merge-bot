@@ -241,8 +241,8 @@ function stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, 
         yield removeLabel(mergingLabel, mergingPrId);
         const queuedPrs = queuedLabel.pullRequests.nodes;
         for (const queuedPr of queuedPrs) {
-            yield removeLabel(queuedLabel, queuedPr.id);
-            yield addLabel(mergingLabel, queuedPr.id);
+            yield removeLabel(queuedLabel, String(queuedPr.id));
+            yield addLabel(mergingLabel, String(queuedPr.id));
             try {
                 yield mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId);
                 core.info("PR successfully made up-to-date");
@@ -250,7 +250,7 @@ function stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, 
             }
             catch (error) {
                 core.info("Unable to update the queued PR. Will process the next item in the queue.");
-                yield removeLabel(mergingLabel, queuedPr.id);
+                yield removeLabel(mergingLabel, String(queuedPr.id));
             }
         }
     });
@@ -361,10 +361,10 @@ function processNonPendingStatus(repo, commit, state) {
         }
         const queuelabel = labelNodes.find(labels_1.isBotQueuedLabel);
         if (!queuelabel) {
-            yield mutations_1.removeLabel(mergingLabel, mergingPr.id);
+            yield mutations_1.removeLabel(mergingLabel, String(mergingPr.id));
             return;
         }
-        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, mergingPr.id, repo.node_id);
+        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, String(mergingPr.id), repo.node_id);
     });
 }
 exports.processNonPendingStatus = processNonPendingStatus;
@@ -527,7 +527,7 @@ function processQueueForMergingCommand(pr, repo) {
                 core.info("PR already up-to-date.");
                 try {
                     yield mutations_1.mergePr({
-                        id: pr.id.toString(),
+                        id: pr.id,
                         baseRef: { name: pr.base.ref },
                         headRef: { name: pr.head.ref },
                     });

@@ -85,7 +85,7 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
   queuedLabel: Label & {
     pullRequests: {
       nodes: {
-        id: string
+        id: number
         headRef: { name: string }
         baseRef: { name: string }
       }[]
@@ -98,8 +98,8 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
 
   const queuedPrs = queuedLabel.pullRequests.nodes
   for (const queuedPr of queuedPrs) {
-    await removeLabel(queuedLabel, queuedPr.id)
-    await addLabel(mergingLabel, queuedPr.id)
+    await removeLabel(queuedLabel, String(queuedPr.id))
+    await addLabel(mergingLabel, String(queuedPr.id))
     try {
       await mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId)
       core.info("PR successfully made up-to-date")
@@ -108,7 +108,7 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
       core.info(
         "Unable to update the queued PR. Will process the next item in the queue."
       )
-      await removeLabel(mergingLabel, queuedPr.id)
+      await removeLabel(mergingLabel, String(queuedPr.id))
     }
   }
 }
@@ -119,7 +119,7 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
  * @param repoId
  */
 export async function mergePr(pr: {
-  id: string
+  id: number
   baseRef: { name: string }
   headRef: { name: string }
 }): Promise<void> {

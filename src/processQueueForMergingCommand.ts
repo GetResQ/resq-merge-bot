@@ -95,7 +95,7 @@ export async function processQueueForMergingCommand(
       core.info("PR already up-to-date.")
       try {
         await mergePr({
-          id: pr.id.toString(),
+          id: pr.id,
           baseRef: { name: pr.base.ref },
           headRef: { name: pr.head.ref },
         })
@@ -129,7 +129,7 @@ async function fetchData(
         name: string
         pullRequests: {
           nodes: {
-            id: string
+            id: number
             number: number
             title: string
             baseRef: { name: string }
