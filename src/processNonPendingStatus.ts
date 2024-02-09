@@ -65,13 +65,14 @@ export async function processNonPendingStatus(
 
   const queuelabel = labelNodes.find(isBotQueuedLabel)
   if (!queuelabel) {
-    await removeLabel(mergingLabel, mergingPr.id)
+    await removeLabel(mergingLabel, String(mergingPr.id))
     return
   }
   await stopMergingCurrentPrAndProcessNextPrInQueue(
     mergingLabel,
     queuelabel,
-    mergingPr.id
+    String(mergingPr.id),
+    repo.node_id
   )
 }
 

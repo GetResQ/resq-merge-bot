@@ -8,20 +8,23 @@ import { Label } from "./labels"
  * @param repoId Repository ID
  * @param [commitMessage] Commit message
  */
-export async function mergeBranch(pr: {
-  id: string
-  baseRef: { name: string }
-  headRef: { name: string }
-}): Promise<void> {
+export async function mergeBranch(
+  base: string,
+  head: string,
+  repoId: string,
+  commitMessage?: string
+): Promise<void> {
+  const requiredInput = { base, head, repositoryId: repoId }
   await graphqlClient(
-    `mutation UpdatePullRequest($pullRequestId: ID!, $baseRefName: String!) {
-      updatePullRequest(input: {pullRequestId: $pullRequestId, baseRefName: $baseRefName}) {
+    `mutation updateBranch($input: MergeBranchInput!) {
+      mergeBranch(input: $input) {
         __typename
       }
     }`,
     {
-      pullRequestId: pr.id,
-      baseRefName: pr.baseRef.name,
+      input: commitMessage
+        ? { ...requiredInput, commitMessage }
+        : requiredInput,
     }
   )
 }
@@ -88,23 +91,24 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
       }[]
     }
   },
-  mergingPrId: string
+  mergingPrId: string,
+  repoId: string
 ): Promise<void> {
   await removeLabel(mergingLabel, mergingPrId)
 
   const queuedPrs = queuedLabel.pullRequests.nodes
   for (const queuedPr of queuedPrs) {
-    await removeLabel(queuedLabel, queuedPr.id)
-    await addLabel(mergingLabel, queuedPr.id)
+    await removeLabel(queuedLabel, String(queuedPr.id))
+    await addLabel(mergingLabel, String(queuedPr.id))
     try {
-      await mergeBranch(queuedPr)
+      await mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId)
       core.info("PR successfully made up-to-date")
       break
     } catch (error) {
       core.info(
         "Unable to update the queued PR. Will process the next item in the queue."
       )
-      await removeLabel(mergingLabel, queuedPr.id)
+      await removeLabel(mergingLabel, String(queuedPr.id))
     }
   }
 }
@@ -112,13 +116,13 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
 /**
  *
  * @param pr Pull request object
- * @param repoId
  */
 export async function mergePr(pr: {
   id: string
   baseRef: { name: string }
   headRef: { name: string }
 }): Promise<void> {
+  core.info(pr.id)
   await graphqlClient(
     `mutation MergePullRequest($pullRequestId: ID!) {
       mergePullRequest(input: {pullRequestId: $pullRequestId, mergeMethod: SQUASH}) {
@@ -126,7 +130,7 @@ export async function mergePr(pr: {
       }
     }`,
     {
-      input: { pullRequestId: pr.id },
+      pullRequestId: pr.id,
     }
   )
 }
