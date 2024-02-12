@@ -17,7 +17,6 @@ import { Repository } from "@octokit/webhooks-definitions/schema"
  */
 export async function processNonPendingStatus(
   repo: Repository,
-  commit: { node_id: string },
   state: "success" | "failure" | "error"
 ): Promise<void> {
   const {
@@ -35,12 +34,6 @@ export async function processNonPendingStatus(
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
-  if (commit.node_id !== latestCommit.id) {
-    core.info(
-      "Commit that trigger this hook is not the latest commit of the merging PR"
-    )
-    return
-  }
 
   if (state === "success") {
     const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(

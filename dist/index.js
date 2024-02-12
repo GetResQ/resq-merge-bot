@@ -127,7 +127,7 @@ function processStatusEvent(statusEvent) {
         if (statusEvent.state === "pending") {
             return;
         }
-        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.state);
+        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.state);
         core.info("Finish process status event");
     });
 }
@@ -323,7 +323,7 @@ const labels_1 = __nccwpck_require__(579);
  * @param context Check name
  * @param state Status state
  */
-function processNonPendingStatus(repo, commit, state) {
+function processNonPendingStatus(repo, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
@@ -333,10 +333,6 @@ function processNonPendingStatus(repo, commit, state) {
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
-        if (commit.node_id !== latestCommit.id) {
-            // Commit that trigger this hook is not the latest commit of the merging PR
-            return;
-        }
         if (state === "success") {
             const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
                 var _a, _b;
