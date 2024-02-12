@@ -521,11 +521,11 @@ function processQueueForMergingCommand(pr, repo) {
         try {
             yield mutations_1.mergeBranch(pr.head.ref, pr.base.ref, repo.node_id);
             core.info("Make PR up-to-date");
+            return;
         }
         catch (error) {
             if (error.message === 'Failed to merge: "Already merged"') {
                 core.info("PR already up-to-date.");
-                core.info(mergingPr.id);
                 try {
                     yield mutations_1.mergePr(mergingPr);
                 }
