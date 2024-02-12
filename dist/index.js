@@ -125,6 +125,7 @@ function processPullRequestEvent(pullRequestEvent) {
 function processStatusEvent(statusEvent) {
     return __awaiter(this, void 0, void 0, function* () {
         if (statusEvent.state === "pending") {
+            core.info("status state is pending.");
             return;
         }
         yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.state);
@@ -328,13 +329,13 @@ function processNonPendingStatus(repo, commit, state) {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
         if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
-            // No merging PR to process
+            core.info("No merging PR to process");
             return;
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
         if (commit.node_id !== latestCommit.id) {
-            // Commit that trigger this hook is not the latest commit of the merging PR
+            core.info("Commit that trigger this hook is not the latest commit of the merging PR");
             return;
         }
         if (state === "success") {
@@ -347,6 +348,7 @@ function processNonPendingStatus(repo, commit, state) {
                 return status === "COMPLETED" || status === null || status === undefined;
             });
             if (!isAllRequiredCheckPassed) {
+                core.info("Not all Required Checks have finished.");
                 return;
             }
             core.info("##### ALL CHECK PASS");
