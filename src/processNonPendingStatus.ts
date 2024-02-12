@@ -28,7 +28,7 @@ export async function processNonPendingStatus(
   const mergingLabel = labelNodes.find(isBotMergingLabel)
 
   if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
-    // No merging PR to process
+    core.info("No merging PR to process")
     return
   }
 
@@ -46,6 +46,7 @@ export async function processNonPendingStatus(
       }
     )
     if (!isAllRequiredCheckPassed) {
+      core.info("Not all Required Checks have finished.")
       return
     }
     core.info("##### ALL CHECK PASS")
