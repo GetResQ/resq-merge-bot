@@ -54,6 +54,7 @@ async function processPullRequestEvent(
 
 async function processStatusEvent(statusEvent: StatusEvent): Promise<void> {
   if (statusEvent.state === "pending") {
+    core.info("status state is pending.")
     return
   }
   await processNonPendingStatus(
