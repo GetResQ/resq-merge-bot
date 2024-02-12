@@ -62,4 +62,4 @@ PRs welcome :)
 3. Update the version in code example in `README.md`
 4. Commit and push to the `main` branch
 5. Create a release in GitHub with the new version; e.g. `0.4.0` in `package.json`, the release should have a tag `v0.4.0`.
-   test
+   testing
