@@ -29,7 +29,7 @@ export async function processNonPendingStatus(
   const mergingLabel = labelNodes.find(isBotMergingLabel)
 
   if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
-    // No merging PR to process
+    core.info("No merging PR to process")
     return
   }
 
