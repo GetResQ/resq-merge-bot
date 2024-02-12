@@ -334,13 +334,6 @@ function processNonPendingStatus(repo, state) {
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
-<<<<<<< HEAD
-=======
-        if (commit.node_id !== latestCommit.id) {
-            core.info("Commit that trigger this hook is not the latest commit of the merging PR");
-            return;
-        }
->>>>>>> fafd895fc42d3b373458967dd0e6358f04faab33
         if (state === "success") {
             const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
                 var _a, _b;
