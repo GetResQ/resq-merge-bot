@@ -329,16 +329,28 @@ function processNonPendingStatus(repo, commit, state) {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
         if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
-            // No merging PR to process
+            core.info("No merging PR to process");
             return;
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
         if (commit.node_id !== latestCommit.id) {
-            // Commit that trigger this hook is not the latest commit of the merging PR
+            core.info("Commit that trigger this hook is not the latest commit of the merging PR");
             return;
         }
         if (state === "success") {
+            const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
+                var _a, _b;
+                let status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
+                if (((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name) === "merge-queue") {
+                    status = "COMPLETED";
+                }
+                return status === "COMPLETED" || status === null || status === undefined;
+            });
+            if (!isAllRequiredCheckPassed) {
+                core.info("Not all Required Checks have finished.");
+                return;
+            }
             core.info("##### ALL CHECK PASS");
             try {
                 yield mutations_1.mergePr(mergingPr);
