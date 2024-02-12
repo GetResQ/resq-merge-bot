@@ -29,18 +29,33 @@ export async function processNonPendingStatus(
   const mergingLabel = labelNodes.find(isBotMergingLabel)
 
   if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
-    // No merging PR to process
+    core.info("No merging PR to process")
     return
   }
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
   if (commit.node_id !== latestCommit.id) {
-    // Commit that trigger this hook is not the latest commit of the merging PR
+    core.info(
+      "Commit that trigger this hook is not the latest commit of the merging PR"
+    )
     return
   }
 
   if (state === "success") {
+    const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
+      (node) => {
+        let status = node.checkRuns.nodes[0]?.status
+        if (node.checkRuns.nodes[0]?.name === "merge-queue") {
+          status = "COMPLETED"
+        }
+        return status === "COMPLETED" || status === null || status === undefined
+      }
+    )
+    if (!isAllRequiredCheckPassed) {
+      core.info("Not all Required Checks have finished.")
+      return
+    }
     core.info("##### ALL CHECK PASS")
     try {
       await mergePr(mergingPr)
@@ -51,15 +66,15 @@ export async function processNonPendingStatus(
     }
   }
 
-  const queuedLabel = labelNodes.find(isBotQueuedLabel)
-  if (!queuedLabel) {
-    await removeLabel(mergingLabel, mergingPr.id)
+  const queuelabel = labelNodes.find(isBotQueuedLabel)
+  if (!queuelabel) {
+    await removeLabel(mergingLabel, String(mergingPr.id))
     return
   }
   await stopMergingCurrentPrAndProcessNextPrInQueue(
     mergingLabel,
-    queuedLabel,
-    mergingPr.id,
+    queuelabel,
+    String(mergingPr.id),
     repo.node_id
   )
 }
@@ -74,9 +89,6 @@ async function fetchData(
   repo: string
 ): Promise<{
   repository: {
-    branchProtectionRules: {
-      nodes: { pattern: string; requiredStatusCheckContexts: string[] }[]
-    }
     labels: {
       nodes: {
         id: string
@@ -90,13 +102,16 @@ async function fetchData(
             headRef: { name: string }
             commits: {
               nodes: {
-                id: string
                 commit: {
                   id: string
-                  status: {
-                    contexts: {
-                      context: string
-                      state: "SUCCESS" | "PENDING" | "FAILURE"
+                  checkSuites: {
+                    nodes: {
+                      checkRuns: {
+                        nodes: {
+                          status: string
+                          name: string
+                        }[]
+                      }
                     }[]
                   }
                 }
@@ -110,47 +125,44 @@ async function fetchData(
 }> {
   return graphqlClient(
     `query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           branchProtectionRules(last: 10) {
-             nodes {
-               pattern
-               requiredStatusCheckContexts
-             }
-           }
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
-                 nodes {
-                   id
-                   number
-                   title
-                   baseRef {
-                     name
-                   }
-                   headRef {
-                     name
-                   }
-                   commits(last: 1) {
-                     nodes {
-                       commit {
-                         id
-                         status {
-                           contexts {
-                             context
-                             state
+      repository(owner:$owner, name:$repo) {
+        labels(last: 50) {
+          nodes {
+            id
+            name
+            pullRequests(first: 20) {
+              nodes {
+                id
+                number
+                title
+                baseRef {
+                  name
+                }
+                headRef {
+                  name
+                }
+                commits(last: 1) {
+                  nodes {
+                   commit {
+                     checkSuites(first: 10) {
+                       nodes {
+                         checkRuns(first:10) {
+                           nodes {
+                             status
+                             name
                            }
                          }
                        }
                      }
                    }
-                 }
-               }
-             }
-           }
-         }
-       }`,
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }`,
     { owner, repo }
   )
 }
