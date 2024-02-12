@@ -36,7 +36,9 @@ export async function processNonPendingStatus(
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
   if (commit.node_id !== latestCommit.id) {
-    // Commit that trigger this hook is not the latest commit of the merging PR
+    core.info(
+      "Commit that trigger this hook is not the latest commit of the merging PR"
+    )
     return
   }
 
@@ -51,6 +53,7 @@ export async function processNonPendingStatus(
       }
     )
     if (!isAllRequiredCheckPassed) {
+      core.info("Not all Required Checks have finished.")
       return
     }
     core.info("##### ALL CHECK PASS")
