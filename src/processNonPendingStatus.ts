@@ -53,6 +53,7 @@ export async function processNonPendingStatus(
       }
     )
     if (!isAllRequiredCheckPassed) {
+      core.info("Not all Required Checks have finished.")
       return
     }
     core.info("##### ALL CHECK PASS")
