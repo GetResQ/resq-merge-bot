@@ -28,7 +28,7 @@ export async function processNonPendingStatus(
   const mergingLabel = labelNodes.find(isBotMergingLabel)
   const checksToSkip: string = process.env.checksToSkip!
   const checksToSkipList = Array.from(checksToSkip)
-
+  core.info(checksToSkip)
   for (let index = 0; index < checksToSkip.length; index++) {
     core.info(checksToSkipList[index])
   }
