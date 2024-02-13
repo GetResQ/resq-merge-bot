@@ -26,12 +26,8 @@ export async function processNonPendingStatus(
   } = await fetchData(repo.owner.login, repo.name)
 
   const mergingLabel = labelNodes.find(isBotMergingLabel)
-  const checksToSkip: string = process.env.checksToSkip!
-  const checksToSkipList = Array.from(checksToSkip)
-  core.info(checksToSkip)
-  for (let index = 0; index < checksToSkip.length; index++) {
-    core.info(checksToSkipList[index])
-  }
+  const checksToSkip: string[] = JSON.parse(process.env.CHECKS_TO_SKIP || "[]")
+  core.info(checksToSkip[0])
 
   if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
     core.info("No merging PR to process")
@@ -45,7 +41,7 @@ export async function processNonPendingStatus(
     const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
       (node) => {
         let status = node.checkRuns.nodes[0]?.status
-        if (node.checkRuns.nodes[0]?.name in checksToSkipList) {
+        if (node.checkRuns.nodes[0]?.name in checksToSkip) {
           status = "COMPLETED"
         }
         return status === "COMPLETED" || status === null || status === undefined
