@@ -39,7 +39,10 @@ export async function processNonPendingStatus(
     const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
       (node) => {
         let status = node.checkRuns.nodes[0]?.status
-        if (node.checkRuns.nodes[0]?.name === "merge-queue") {
+        if (
+          node.checkRuns.nodes[0]?.name === "merge-queue" ||
+          node.checkRuns.nodes[0]?.name === "task-list-completed"
+        ) {
           status = "COMPLETED"
         }
         return status === "COMPLETED" || status === null || status === undefined
