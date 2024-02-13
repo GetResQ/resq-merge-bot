@@ -105,6 +105,7 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
       core.info("PR successfully made up-to-date")
       break
     } catch (error) {
+      core.error(error)
       core.info(
         "Unable to update the queued PR. Will process the next item in the queue."
       )

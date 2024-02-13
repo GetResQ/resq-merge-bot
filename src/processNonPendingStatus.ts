@@ -64,13 +64,13 @@ export async function processNonPendingStatus(
 
   const queuelabel = labelNodes.find(isBotQueuedLabel)
   if (!queuelabel) {
-    await removeLabel(mergingLabel, String(mergingPr.id))
+    await removeLabel(mergingLabel, mergingPr.id)
     return
   }
   await stopMergingCurrentPrAndProcessNextPrInQueue(
     mergingLabel,
     queuelabel,
-    String(mergingPr.id),
+    mergingPr.id,
     repo.node_id
   )
 }
@@ -142,7 +142,7 @@ async function fetchData(
                    commit {
                      checkSuites(first: 10) {
                        nodes {
-                         checkRuns(first:10) {
+                         checkRuns(last:1) {
                            nodes {
                              status
                              name
