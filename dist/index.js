@@ -125,10 +125,9 @@ function processPullRequestEvent(pullRequestEvent) {
 function processStatusEvent(statusEvent) {
     return __awaiter(this, void 0, void 0, function* () {
         if (statusEvent.state === "pending") {
-            core.info("status state is pending.");
             return;
         }
-        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.state);
+        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.context, statusEvent.state);
         core.info("Finish process status event");
     });
 }
@@ -242,8 +241,8 @@ function stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, 
         yield removeLabel(mergingLabel, mergingPrId);
         const queuedPrs = queuedLabel.pullRequests.nodes;
         for (const queuedPr of queuedPrs) {
-            yield removeLabel(queuedLabel, String(queuedPr.id));
-            yield addLabel(mergingLabel, String(queuedPr.id));
+            yield removeLabel(queuedLabel, queuedPr.id);
+            yield addLabel(mergingLabel, queuedPr.id);
             try {
                 yield mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId);
                 core.info("PR successfully made up-to-date");
@@ -251,7 +250,7 @@ function stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, 
             }
             catch (error) {
                 core.info("Unable to update the queued PR. Will process the next item in the queue.");
-                yield removeLabel(mergingLabel, String(queuedPr.id));
+                yield removeLabel(mergingLabel, queuedPr.id);
             }
         }
     });
@@ -260,17 +259,11 @@ exports.stopMergingCurrentPrAndProcessNextPrInQueue = stopMergingCurrentPrAndPro
 /**
  *
  * @param pr Pull request object
+ * @param repoId
  */
-function mergePr(pr) {
+function mergePr(pr, repoId) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.info(pr.id);
-        yield graphqlClient_1.graphqlClient(`mutation MergePullRequest($pullRequestId: ID!) {
-      mergePullRequest(input: {pullRequestId: $pullRequestId, mergeMethod: SQUASH}) {
-        __typename
-      }
-    }`, {
-            pullRequestId: pr.id,
-        });
+        yield mergeBranch(pr.baseRef.name, pr.headRef.name, repoId, `Merge pull request #${pr.number} from ${pr.headRef.name}\n\n${pr.title}`);
     });
 }
 exports.mergePr = mergePr;
@@ -324,32 +317,42 @@ const labels_1 = __nccwpck_require__(579);
  * @param context Check name
  * @param state Status state
  */
-function processNonPendingStatus(repo, state) {
+function processNonPendingStatus(repo, commit, context, state) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
+        const { repository: { branchProtectionRules, labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
         if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
-            core.info("No merging PR to process");
+            // No merging PR to process
             return;
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
+        if (commit.node_id !== latestCommit.id) {
+            // Commit that trigger this hook is not the latest commit of the merging PR
+            return;
+        }
+        const baseBranchRule = branchProtectionRules.nodes.find((rule) => rule.pattern === mergingPr.baseRef.name);
+        if (!baseBranchRule) {
+            // TODO: No protection rule for merging this PR. Merge immediately?
+            return;
+        }
+        const requiredCheckNames = baseBranchRule.requiredStatusCheckContexts;
         if (state === "success") {
-            const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
-                var _a, _b;
-                let status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
-                if (((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name) === "merge-queue") {
-                    status = "COMPLETED";
+            const isAllRequiredCheckPassed = requiredCheckNames.every((checkName) => {
+                if (!checkName.includes("ci/circleci")) {
+                    // TODO: Support GitHub Action. Can't get `statusCheckRollup` to work in GitHub API Explorer for some reason.
+                    return true;
                 }
-                return status === "COMPLETED" || status === null || status === undefined;
+                return latestCommit.status.contexts.find((latestCommitContext) => latestCommitContext.context === checkName &&
+                    latestCommitContext.state === "SUCCESS");
             });
             if (!isAllRequiredCheckPassed) {
-                core.info("Not all Required Checks have finished.");
+                // Some required check is still pending
                 return;
             }
             core.info("##### ALL CHECK PASS");
             try {
-                yield mutations_1.mergePr(mergingPr);
+                yield mutations_1.mergePr(mergingPr, repo.node_id);
                 // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
             }
             catch (error) {
@@ -357,12 +360,18 @@ function processNonPendingStatus(repo, state) {
                 core.error(error);
             }
         }
-        const queuelabel = labelNodes.find(labels_1.isBotQueuedLabel);
-        if (!queuelabel) {
-            yield mutations_1.removeLabel(mergingLabel, String(mergingPr.id));
+        else {
+            if (!requiredCheckNames.includes(context)) {
+                // The failed check from this webhook is not in the required status check, so we can ignore it.
+                return;
+            }
+        }
+        const queuedLabel = labelNodes.find(labels_1.isBotQueuedLabel);
+        if (!queuedLabel) {
+            yield mutations_1.removeLabel(mergingLabel, mergingPr.id);
             return;
         }
-        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, String(mergingPr.id), repo.node_id);
+        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, mergingPr.id, repo.node_id);
     });
 }
 exports.processNonPendingStatus = processNonPendingStatus;
@@ -374,44 +383,47 @@ exports.processNonPendingStatus = processNonPendingStatus;
 function fetchData(owner, repo) {
     return __awaiter(this, void 0, void 0, function* () {
         return graphqlClient_1.graphqlClient(`query allLabels($owner: String!, $repo: String!) {
-      repository(owner:$owner, name:$repo) {
-        labels(last: 50) {
-          nodes {
-            id
-            name
-            pullRequests(first: 20) {
-              nodes {
-                id
-                number
-                title
-                baseRef {
-                  name
-                }
-                headRef {
-                  name
-                }
-                commits(last: 1) {
-                  nodes {
-                   commit {
-                     checkSuites(first: 10) {
-                       nodes {
-                         checkRuns(first:10) {
-                           nodes {
-                             status
-                             name
+         repository(owner:$owner, name:$repo) {
+           branchProtectionRules(last: 10) {
+             nodes {
+               pattern
+               requiredStatusCheckContexts
+             }
+           }
+           labels(last: 50) {
+             nodes {
+               id
+               name
+               pullRequests(first: 20) {
+                 nodes {
+                   id
+                   number
+                   title
+                   baseRef {
+                     name
+                   }
+                   headRef {
+                     name
+                   }
+                   commits(last: 1) {
+                     nodes {
+                       commit {
+                         id
+                         status {
+                           contexts {
+                             context
+                             state
                            }
                          }
                        }
                      }
                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }`, { owner, repo });
+                 }
+               }
+             }
+           }
+         }
+       }`, { owner, repo });
     });
 }
 
@@ -510,10 +522,11 @@ function processQueueForMergingCommand(pr, repo) {
                 core.info("PR already up-to-date.");
                 try {
                     yield mutations_1.mergePr({
-                        id: pr.node_id,
+                        title: pr.title,
+                        number: pr.number,
                         baseRef: { name: pr.base.ref },
                         headRef: { name: pr.head.ref },
-                    });
+                    }, repo.node_id);
                 }
                 catch (mergePrError) {
                     core.info("Unable to merge the PR");
