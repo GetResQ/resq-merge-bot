@@ -328,7 +328,7 @@ function processNonPendingStatus(repo, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
-        const checksToSkip = JSON.parse(process.env.CHECKS_TO_SKIP || "[]");
+        const checksToSkip = JSON.parse(`${process.env.CHECKS_TO_SKIP}` || "[]");
         core.info(`${process.env.CHECKS_TO_SKIP}`);
         core.info(checksToSkip[0]);
         if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
