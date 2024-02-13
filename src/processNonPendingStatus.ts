@@ -27,7 +27,7 @@ export async function processNonPendingStatus(
 
   const mergingLabel = labelNodes.find(isBotMergingLabel)
   const checksToSkip: string[] = JSON.parse(process.env.CHECKS_TO_SKIP || "[]")
-  core.info(process.env.CHECKS_TO_SKIP)
+  core.info(`${process.env.CHECKS_TO_SKIP}`)
   core.info(checksToSkip[0])
 
   if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
