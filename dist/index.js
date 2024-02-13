@@ -250,6 +250,7 @@ function stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, 
                 break;
             }
             catch (error) {
+                core.error(error);
                 core.info("Unable to update the queued PR. Will process the next item in the queue.");
                 yield removeLabel(mergingLabel, String(queuedPr.id));
             }
@@ -333,11 +334,16 @@ function processNonPendingStatus(repo, state) {
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
+        const checksToSkip = process.env.checksToSkip;
+        const checksToSkipList = Array.from(checksToSkip);
+        for (let index = 0; index < checksToSkip.length; index++) {
+            core.info(checksToSkipList[index]);
+        }
         if (state === "success") {
             const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
                 var _a, _b;
                 let status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
-                if (((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name) === "merge-queue") {
+                if (((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name) in checksToSkipList) {
                     status = "COMPLETED";
                 }
                 return status === "COMPLETED" || status === null || status === undefined;
@@ -358,10 +364,10 @@ function processNonPendingStatus(repo, state) {
         }
         const queuelabel = labelNodes.find(labels_1.isBotQueuedLabel);
         if (!queuelabel) {
-            yield mutations_1.removeLabel(mergingLabel, String(mergingPr.id));
+            yield mutations_1.removeLabel(mergingLabel, mergingPr.id);
             return;
         }
-        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, String(mergingPr.id), repo.node_id);
+        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, mergingPr.id, repo.node_id);
     });
 }
 exports.processNonPendingStatus = processNonPendingStatus;
@@ -394,7 +400,7 @@ function fetchData(owner, repo) {
                    commit {
                      checkSuites(first: 10) {
                        nodes {
-                         checkRuns(first:10) {
+                         checkRuns(last:1) {
                            nodes {
                              status
                              name

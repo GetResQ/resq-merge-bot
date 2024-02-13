@@ -34,15 +34,18 @@ export async function processNonPendingStatus(
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
+  const checksToSkip: string = process.env.checksToSkip!
+  const checksToSkipList = Array.from(checksToSkip)
+
+  for (let index = 0; index < checksToSkip.length; index++) {
+    core.info(checksToSkipList[index])
+  }
 
   if (state === "success") {
     const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
       (node) => {
         let status = node.checkRuns.nodes[0]?.status
-        if (
-          node.checkRuns.nodes[0]?.name === "merge-queue" ||
-          node.checkRuns.nodes[0]?.name === "task-list-completed"
-        ) {
+        if (node.checkRuns.nodes[0]?.name in checksToSkipList) {
           status = "COMPLETED"
         }
         return status === "COMPLETED" || status === null || status === undefined
