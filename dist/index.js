@@ -128,7 +128,7 @@ function processStatusEvent(statusEvent) {
             core.info("status state is pending.");
             return;
         }
-        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.state);
+        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.state);
         core.info("Finish process status event");
     });
 }
@@ -324,7 +324,7 @@ const labels_1 = __nccwpck_require__(579);
  * @param context Check name
  * @param state Status state
  */
-function processNonPendingStatus(repo, commit, state) {
+function processNonPendingStatus(repo, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
@@ -334,10 +334,6 @@ function processNonPendingStatus(repo, commit, state) {
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
-        if (commit.node_id !== latestCommit.id) {
-            core.info("Commit that trigger this hook is not the latest commit of the merging PR");
-            return;
-        }
         if (state === "success") {
             const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
                 var _a, _b;
@@ -361,12 +357,12 @@ function processNonPendingStatus(repo, commit, state) {
                 core.error(error);
             }
         }
-        const queuedLabel = labelNodes.find(labels_1.isBotQueuedLabel);
-        if (!queuedLabel) {
-            yield mutations_1.removeLabel(mergingLabel, mergingPr.id);
+        const queuelabel = labelNodes.find(labels_1.isBotQueuedLabel);
+        if (!queuelabel) {
+            yield mutations_1.removeLabel(mergingLabel, String(mergingPr.id));
             return;
         }
-        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, mergingPr.id, repo.node_id);
+        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, String(mergingPr.id), repo.node_id);
     });
 }
 exports.processNonPendingStatus = processNonPendingStatus;
@@ -378,47 +374,44 @@ exports.processNonPendingStatus = processNonPendingStatus;
 function fetchData(owner, repo) {
     return __awaiter(this, void 0, void 0, function* () {
         return graphqlClient_1.graphqlClient(`query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           branchProtectionRules(last: 10) {
-             nodes {
-               pattern
-               requiredStatusCheckContexts
-             }
-           }
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
-                 nodes {
-                   id
-                   number
-                   title
-                   baseRef {
-                     name
-                   }
-                   headRef {
-                     name
-                   }
-                   commits(last: 1) {
-                     nodes {
-                       commit {
-                         id
-                         status {
-                           contexts {
-                             context
-                             state
+      repository(owner:$owner, name:$repo) {
+        labels(last: 50) {
+          nodes {
+            id
+            name
+            pullRequests(first: 20) {
+              nodes {
+                id
+                number
+                title
+                baseRef {
+                  name
+                }
+                headRef {
+                  name
+                }
+                commits(last: 1) {
+                  nodes {
+                   commit {
+                     checkSuites(first: 10) {
+                       nodes {
+                         checkRuns(first:10) {
+                           nodes {
+                             status
+                             name
                            }
                          }
                        }
                      }
                    }
-                 }
-               }
-             }
-           }
-         }
-       }`, { owner, repo });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }`, { owner, repo });
     });
 }
 
