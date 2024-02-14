@@ -328,8 +328,10 @@ function processNonPendingStatus(repo, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
         const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
-        const ms = core.getInput("checks");
-        core.info(ms);
+        const checksToSkip = core.getInput("checks");
+        const checksToSkipList = checksToSkip.split(",");
+        core.info(checksToSkipList[0]);
+        core.info(checksToSkipList[1]);
         if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
             core.info("No merging PR to process");
             return;
@@ -340,7 +342,7 @@ function processNonPendingStatus(repo, state) {
             const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
                 var _a, _b;
                 let status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
-                if (((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name) === "merge-queue") {
+                if (((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name) in checksToSkipList) {
                     status = "COMPLETED";
                 }
                 return status === "COMPLETED" || status === null || status === undefined;
