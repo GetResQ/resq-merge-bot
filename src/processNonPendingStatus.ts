@@ -27,7 +27,7 @@ export async function processNonPendingStatus(
 
   const mergingLabel = labelNodes.find(isBotMergingLabel)
   const ms: string = core.getInput("checks-to-skip")
-  core.debug(`Waiting ${ms} milliseconds ...`)
+  core.info(`${ms}`)
 
   if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
     core.info("No merging PR to process")
