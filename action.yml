@@ -7,3 +7,8 @@ runs:
 branding:
   icon: "git-merge"
   color: "green"
+inputs:
+  checks-to-skip:
+    description: "List of checks that can be skipped"
+    required: true
+    default: ""
