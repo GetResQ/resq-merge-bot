@@ -35,7 +35,7 @@ export async function processNonPendingStatus(
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
 
-  const checksToSkip: string = process.env.INPUT_CHECKS || ""
+  const checksToSkip: string = core.getInput("checks")
   const checksToSkipList = checksToSkip.split(",")
   core.info(checksToSkipList[0])
   core.info(checksToSkipList[1])
