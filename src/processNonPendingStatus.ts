@@ -26,8 +26,10 @@ export async function processNonPendingStatus(
   } = await fetchData(repo.owner.login, repo.name)
 
   const mergingLabel = labelNodes.find(isBotMergingLabel)
-  const ms: string = core.getInput("checks")
-  core.info(ms)
+  const checksToSkip: string = core.getInput("checks")
+  const checksToSkipList = checksToSkip.split(",")
+  core.info(checksToSkipList[0])
+  core.info(checksToSkipList[1])
 
   if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
     core.info("No merging PR to process")
@@ -41,7 +43,7 @@ export async function processNonPendingStatus(
     const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
       (node) => {
         let status = node.checkRuns.nodes[0]?.status
-        if (node.checkRuns.nodes[0]?.name === "merge-queue") {
+        if (node.checkRuns.nodes[0]?.name in checksToSkipList) {
           status = "COMPLETED"
         }
         return status === "COMPLETED" || status === null || status === undefined

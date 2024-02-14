@@ -11,4 +11,4 @@ inputs:
   checks:
     description: "List of checks that can be skipped"
     required: true
-    default: "foobar"
+    default: "merge-queue,task-list-completed"
