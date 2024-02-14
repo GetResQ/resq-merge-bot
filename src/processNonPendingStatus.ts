@@ -5,7 +5,6 @@ import {
   mergePr,
   removeLabel,
 } from "./mutations"
-import { isBotMergingLabel, isBotQueuedLabel } from "./labels"
 import { Repository } from "@octokit/webhooks-definitions/schema"
 
 /**
@@ -20,14 +19,10 @@ export async function processNonPendingStatus(
   state: "success" | "failure" | "error"
 ): Promise<void> {
   const {
-    repository: {
-      labels: { nodes: labelNodes },
-    },
+    repository: { queuedLabel, mergingLabel },
   } = await fetchData(repo.owner.login, repo.name)
 
-  const mergingLabel = labelNodes.find(isBotMergingLabel)
-
-  if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
+  if (mergingLabel.pullRequests.nodes.length === 0) {
     core.info("No merging PR to process")
     return
   }
@@ -65,17 +60,47 @@ export async function processNonPendingStatus(
     }
   }
 
-  const queuelabel = labelNodes.find(isBotQueuedLabel)
-  if (!queuelabel) {
+  if (queuedLabel.pullRequests.nodes.length === 0) {
     await removeLabel(mergingLabel, mergingPr.id)
     return
   }
   await stopMergingCurrentPrAndProcessNextPrInQueue(
     mergingLabel,
-    queuelabel,
+    queuedLabel,
     mergingPr.id,
     repo.node_id
   )
+}
+
+export interface Label {
+  id: string
+  name: string
+  pullRequests: {
+    nodes: {
+      id: string
+      number: number
+      title: string
+      baseRef: { name: string }
+      headRef: { name: string }
+      commits: {
+        nodes: {
+          commit: {
+            id: string
+            checkSuites: {
+              nodes: {
+                checkRuns: {
+                  nodes: {
+                    status: string
+                    name: string
+                  }[]
+                }
+              }[]
+            }
+          }
+        }[]
+      }
+    }[]
+  }
 }
 
 /**
@@ -88,80 +113,54 @@ async function fetchData(
   repo: string
 ): Promise<{
   repository: {
-    labels: {
-      nodes: {
-        id: string
-        name: string
-        pullRequests: {
-          nodes: {
-            id: string
-            number: number
-            title: string
-            baseRef: { name: string }
-            headRef: { name: string }
-            commits: {
-              nodes: {
-                commit: {
-                  id: string
-                  checkSuites: {
-                    nodes: {
-                      checkRuns: {
-                        nodes: {
-                          status: string
-                          name: string
-                        }[]
-                      }
-                    }[]
-                  }
-                }
-              }[]
-            }
-          }[]
-        }
-      }[]
-    }
+    queuedLabel: Label
+    mergingLabel: Label
   }
 }> {
   return graphqlClient(
-    `query allLabels($owner: String!, $repo: String!) {
-      repository(owner:$owner, name:$repo) {
-        labels(last: 50) {
-          nodes {
-            id
+    `fragment labelFragment on Label{
+      id
+      name
+      pullRequests(first: 20) {
+        nodes {
+          id
+          number
+          title
+          baseRef {
             name
-            pullRequests(first: 20) {
-              nodes {
-                id
-                number
-                title
-                baseRef {
-                  name
-                }
-                headRef {
-                  name
-                }
-                commits(last: 1) {
-                  nodes {
-                   commit {
-                     checkSuites(first: 10) {
-                       nodes {
-                         checkRuns(last:1) {
-                           nodes {
-                             status
-                             name
-                           }
-                         }
-                       }
+          }
+          headRef {
+            name
+          }
+          commits(last: 1) {
+            nodes {
+             commit {
+               checkSuites(first: 10) {
+                 nodes {
+                   checkRuns(last:1) {
+                     nodes {
+                       status
+                       name
                      }
                    }
-                  }
-                }
-              }
+                 }
+               }
+             }
             }
           }
         }
       }
-    }`,
+    }
+    query allLabels($owner: String!, $repo: String!) {
+          repository(owner:$owner, name:$repo) {
+            queuedLabel: label(name: "bot:queued") {
+              ...labelFragment
+            }
+            mergingLabel: label(name: "bot:merging") {
+              ...labelFragment
+            }
+          }
+        }`,
     { owner, repo }
   )
 }

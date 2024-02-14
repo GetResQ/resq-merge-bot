@@ -316,7 +316,6 @@ exports.processNonPendingStatus = void 0;
 const core = __importStar(__nccwpck_require__(186));
 const graphqlClient_1 = __nccwpck_require__(10);
 const mutations_1 = __nccwpck_require__(701);
-const labels_1 = __nccwpck_require__(579);
 /**
  *
  * @param repo Repository object
@@ -326,9 +325,8 @@ const labels_1 = __nccwpck_require__(579);
  */
 function processNonPendingStatus(repo, state) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
-        const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
-        if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
+        const { repository: { queuedLabel, mergingLabel }, } = yield fetchData(repo.owner.login, repo.name);
+        if (mergingLabel.pullRequests.nodes.length === 0) {
             core.info("No merging PR to process");
             return;
         }
@@ -336,6 +334,7 @@ function processNonPendingStatus(repo, state) {
         const latestCommit = mergingPr.commits.nodes[0].commit;
         const checksToSkip = core.getInput("checks");
         const checksToSkipList = checksToSkip.split(",");
+        core.info(checksToSkip);
         core.info(checksToSkipList[0]);
         core.info(checksToSkipList[1]);
         if (state === "success") {
@@ -361,12 +360,11 @@ function processNonPendingStatus(repo, state) {
                 core.error(error);
             }
         }
-        const queuelabel = labelNodes.find(labels_1.isBotQueuedLabel);
-        if (!queuelabel) {
+        if (queuedLabel.pullRequests.nodes.length === 0) {
             yield mutations_1.removeLabel(mergingLabel, mergingPr.id);
             return;
         }
-        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuelabel, mergingPr.id, repo.node_id);
+        yield mutations_1.stopMergingCurrentPrAndProcessNextPrInQueue(mergingLabel, queuedLabel, mergingPr.id, repo.node_id);
     });
 }
 exports.processNonPendingStatus = processNonPendingStatus;
@@ -377,45 +375,49 @@ exports.processNonPendingStatus = processNonPendingStatus;
  */
 function fetchData(owner, repo) {
     return __awaiter(this, void 0, void 0, function* () {
-        return graphqlClient_1.graphqlClient(`query allLabels($owner: String!, $repo: String!) {
-      repository(owner:$owner, name:$repo) {
-        labels(last: 50) {
-          nodes {
-            id
+        return graphqlClient_1.graphqlClient(`fragment labelFragment on Label{
+      id
+      name
+      pullRequests(first: 20) {
+        nodes {
+          id
+          number
+          title
+          baseRef {
             name
-            pullRequests(first: 20) {
-              nodes {
-                id
-                number
-                title
-                baseRef {
-                  name
-                }
-                headRef {
-                  name
-                }
-                commits(last: 1) {
-                  nodes {
-                   commit {
-                     checkSuites(first: 10) {
-                       nodes {
-                         checkRuns(last:1) {
-                           nodes {
-                             status
-                             name
-                           }
-                         }
-                       }
+          }
+          headRef {
+            name
+          }
+          commits(last: 1) {
+            nodes {
+             commit {
+               checkSuites(first: 10) {
+                 nodes {
+                   checkRuns(last:1) {
+                     nodes {
+                       status
+                       name
                      }
                    }
-                  }
-                }
-              }
+                 }
+               }
+             }
             }
           }
         }
       }
-    }`, { owner, repo });
+    }
+    query allLabels($owner: String!, $repo: String!) {
+          repository(owner:$owner, name:$repo) {
+            queuedLabel: label(name: "bot:queued") {
+              ...labelFragment
+            }
+            mergingLabel: label(name: "bot:merging") {
+              ...labelFragment
+            }
+          }
+        }`, { owner, repo });
     });
 }
 
@@ -468,15 +470,9 @@ const labels_1 = __nccwpck_require__(579);
  */
 function processQueueForMergingCommand(pr, repo) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { repository: { labels: { nodes: labelNodes }, }, } = yield fetchData(repo.owner.login, repo.name);
+        const { repository: { queuedLabel, mergingLabel, commandLabel }, } = yield fetchData(repo.owner.login, repo.name);
         // Remove `command:queue-for-merging` label
-        const commandLabel = labelNodes.find(labels_1.isCommandQueueForMergingLabel);
-        if (!commandLabel) {
-            return;
-        }
         yield mutations_1.removeLabel(commandLabel, pr.node_id);
-        const mergingLabel = labelNodes.find(labels_1.isBotMergingLabel);
-        const queuedLabel = labelNodes.find(labels_1.isBotQueuedLabel);
         // Create bot labels if not existed
         if (!mergingLabel) {
             // TODO: Create bot:merging label on the fly
@@ -536,27 +532,36 @@ exports.processQueueForMergingCommand = processQueueForMergingCommand;
  */
 function fetchData(owner, repo) {
     return __awaiter(this, void 0, void 0, function* () {
-        return graphqlClient_1.graphqlClient(`query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
-                 nodes {
-                   id
-                   baseRef {
-                     name
-                   }
-                   headRef {
-                     name
-                   }
-                 }
-               }
-             }
-           }
-         }
-       }`, { owner, repo });
+        return graphqlClient_1.graphqlClient(`fragment labelFragment on Label{
+      id
+      name
+      pullRequests(first: 20) {
+        nodes {
+          id
+          number
+          title
+          baseRef {
+            name
+          }
+          headRef {
+            name
+          }
+        }
+      }
+    }
+    query allLabels($owner: String!, $repo: String!) {
+          repository(owner:$owner, name:$repo) {
+            queuedLabel: label(name: "bot:queued") {
+              ...labelFragment
+            }
+            mergingLabel: label(name: "bot:merging") {
+              ...labelFragment
+            }
+            commandLabel: label(name: "command:queue-for-merging:) {
+              ...labelFragment
+            }
+          }
+        }`, { owner, repo });
     });
 }
 
