@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: GetResQ/resq-merge-bot@main
+        with:
+          checks-to-skip: 2000
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          checks_to_skip: foobar
