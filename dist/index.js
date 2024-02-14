@@ -336,6 +336,8 @@ function processNonPendingStatus(repo, state) {
         const latestCommit = mergingPr.commits.nodes[0].commit;
         const checksToSkip = core.getInput("checks");
         const checksToSkipList = checksToSkip.split(",");
+        core.info(checksToSkipList[0]);
+        core.info(checksToSkipList[1]);
         if (state === "success") {
             const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
                 var _a, _b;
