@@ -12,6 +12,6 @@ jobs:
     steps:
       - uses: GetResQ/resq-merge-bot@main
         with:
-          checks: 2000
+          checks: ${{ github.event.inputs.checks }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
