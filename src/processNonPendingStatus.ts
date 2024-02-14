@@ -22,6 +22,12 @@ export async function processNonPendingStatus(
     repository: { queuedLabel, mergingLabel },
   } = await fetchData(repo.owner.login, repo.name)
 
+  const checksToSkip: string = core.getInput("checks")
+  const checksToSkipList = checksToSkip.split(",")
+  core.info(checksToSkip)
+  core.info(checksToSkipList[0])
+  core.info(checksToSkipList[1])
+
   if (mergingLabel.pullRequests.nodes.length === 0) {
     core.info("No merging PR to process")
     return
@@ -29,12 +35,6 @@ export async function processNonPendingStatus(
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
-
-  const checksToSkip: string = process.env.INPUT_CHECKS || ""
-  const checksToSkipList = checksToSkip.split(",")
-  core.info(checksToSkip)
-  core.info(checksToSkipList[0])
-  core.info(checksToSkipList[1])
 
   if (state === "success") {
     const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
