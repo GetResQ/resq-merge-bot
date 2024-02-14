@@ -37,6 +37,7 @@ export async function processNonPendingStatus(
 
   const checksToSkip: string = core.getInput("checks")
   const checksToSkipList = checksToSkip.split(",")
+  core.info(checksToSkip)
   core.info(checksToSkipList[0])
   core.info(checksToSkipList[1])
 
