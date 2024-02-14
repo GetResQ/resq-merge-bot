@@ -22,7 +22,7 @@ export async function processNonPendingStatus(
     repository: { queuedLabel, mergingLabel },
   } = await fetchData(repo.owner.login, repo.name)
 
-  const checksToSkip: string = core.getInput("checks")
+  const checksToSkip: string = process.env.INPUT_CHECKS || ""
   const checksToSkipList = checksToSkip.split(",")
   core.info(checksToSkip)
   core.info(checksToSkipList[0])
