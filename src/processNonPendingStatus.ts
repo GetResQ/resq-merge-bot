@@ -37,6 +37,8 @@ export async function processNonPendingStatus(
 
   const checksToSkip: string = core.getInput("checks")
   const checksToSkipList = checksToSkip.split(",")
+  core.info(checksToSkipList[0])
+  core.info(checksToSkipList[1])
 
   if (state === "success") {
     const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
