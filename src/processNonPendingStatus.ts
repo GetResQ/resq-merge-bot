@@ -26,10 +26,7 @@ export async function processNonPendingStatus(
   } = await fetchData(repo.owner.login, repo.name)
 
   const mergingLabel = labelNodes.find(isBotMergingLabel)
-  const checksToSkip: string[] = JSON.parse(
-    `${process.env.CHECKS_TO_SKIP}` || "[]"
-  )
-  core.info(`${process.env.CHECKS_TO_SKIP}`)
+  const checksToSkip: string[] = JSON.parse(process.env.CHECKS_TO_SKIP || "[]")
   core.info(checksToSkip[0])
 
   if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
