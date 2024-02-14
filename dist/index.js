@@ -326,17 +326,18 @@ const mutations_1 = __nccwpck_require__(701);
 function processNonPendingStatus(repo, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { queuedLabel, mergingLabel }, } = yield fetchData(repo.owner.login, repo.name);
+        const checksToSkip = process.env.INPUT_CHECKS || "";
+        const checksToSkipList = checksToSkip.split(",");
+        core.info("Test Log");
+        core.info(checksToSkip);
+        core.info(checksToSkipList[0]);
+        core.info(checksToSkipList[1]);
         if (mergingLabel.pullRequests.nodes.length === 0) {
             core.info("No merging PR to process");
             return;
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
-        const checksToSkip = process.env.INPUT_CHECKS || "";
-        const checksToSkipList = checksToSkip.split(",");
-        core.info(checksToSkip);
-        core.info(checksToSkipList[0]);
-        core.info(checksToSkipList[1]);
         if (state === "success") {
             const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
                 var _a, _b;
