@@ -2,9 +2,9 @@
   <a href="https://github.com/autifyhq/merge-queue-action/actions"><img alt="merge-queue-action status" src="https://github.com/autifyhq/merge-queue-action/workflows/build-test/badge.svg"></a>
 </p>
 
-# Merge Queue Action
+# Resq-Merge-Bot
 
-_This action is created based on [TypeScript Action Template](https://github.com/actions/typescript-action)._
+_This action is created based on [TypeScript Action Template](https://github.com/actions/typescript-action) and [autifyhq/merge-queue-action](https://github.com/autifyhq/merge-queue-action)._
 
 ## Setup
 
@@ -19,7 +19,7 @@ _This action is created based on [TypeScript Action Template](https://github.com
 
    on:
      status:
-     pull_request:
+     pull_request_target:
        types:
          - labeled
 
@@ -27,12 +27,15 @@ _This action is created based on [TypeScript Action Template](https://github.com
      merge-queue:
        runs-on: ubuntu-latest
        steps:
-         - uses: autifyhq/merge-queue-action@v0.1.0
+         - uses: GetResQ/resq-merge-bot@main_with_changes
+           with:
+             checks_to_skip: check1,check2
            env:
-             GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
    ```
 
-   The access token needs to have `repo` permission, and it has to have an owner access to the repository as well, otherwise it wouldn't be able to get the branch protection requirement from the API.
+   The github token needs to have `read and write` permissions. Use the `checks_to_skip` input variable to pass in what checks you want to skip, the bot will not wait for these checks to finish and continue merging. Use this variable for checks that may still be pending but you would still like the ability to merge the PR. Separate check names with commas.
+   Example: `checks_to_skip: build,deploy`
 
 ## Usage
 
@@ -43,15 +46,16 @@ You can merge a PR by adding `command:queue-for-merging` label to your PR. The a
 
 The action will do the following to the merging PR:
 
-- Merge the PR if it’s up-to-date and all check pass
-- Make it up-to-date if it isn't. Will merge when all check pass and remove it from merging status
-- If it’s unable to make the PR up-to-date, or some required check fail, the PR will be removed from merging status
-- When the PR is removed from merging status, it’ll look for a next PR in the queue, and process the same way.
+- Make PR up-to-date if it isn't. If it's unable to make the PR up-to-date, PR will be removed from merging status and next PR will be processed.
+- Attempt to merge PR if all checks (not including the checks listed in `checks_to_skip`) have completed.
+- Once the merge has either succeeded or failed, it will remove labels and merging status from the PR and start processing the next PR in the queue.
 
 ### Limitation
 
-- Only support required checks from CircleCI https://github.com/autifyhq/merge-queue-action/issues/24
-- Only support base branch that has a required check https://github.com/autifyhq/merge-queue-action/issues/23
+- PR will be removed from merging status and next PR will be processed if anything causes the merge to fail, including but not limited to:
+  - branch protection rules prevent the merge
+  - merge conflicts
+- The bot waits for all checks that are NOT listed in `checks_to_skip` to be completed before merging, even checks that are not required under branch protection.
 
 PRs welcome :)
 
@@ -62,4 +66,3 @@ PRs welcome :)
 3. Update the version in code example in `README.md`
 4. Commit and push to the `main` branch
 5. Create a release in GitHub with the new version; e.g. `0.4.0` in `package.json`, the release should have a tag `v0.4.0`.
-   testing branch_2
