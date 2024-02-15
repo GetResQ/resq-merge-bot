@@ -394,6 +394,7 @@ function fetchData(owner, repo) {
           commits(last: 1) {
             nodes {
              commit {
+              id
                checkSuites(first: 10) {
                  nodes {
                    checkRuns(last:1) {
