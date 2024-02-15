@@ -1,10 +1,6 @@
 import * as core from "@actions/core"
 import { graphqlClient } from "./graphqlClient"
-import {
-  stopMergingCurrentPrAndProcessNextPrInQueue,
-  mergePr,
-  removeLabel,
-} from "./mutations"
+import { processNextPrInQueue, mergePr, removeLabel } from "./mutations"
 import { Repository } from "@octokit/webhooks-definitions/schema"
 import { Label } from "./labels"
 /**
@@ -24,10 +20,7 @@ export async function processNonPendingStatus(
 
   if (mergingLabel.pullRequests.nodes.length === 0) {
     core.info("No merging PR to process")
-    if (queuedLabel.pullRequests.nodes.length !== 0) {
-      core.info("Queued Label exists without merging PR, remove queued label.")
-      await removeLabel(queuedLabel, queuedLabel.id)
-    }
+    await processNextPrInQueue(mergingLabel, queuedLabel, repo.node_id)
     return
   }
 
@@ -66,12 +59,8 @@ export async function processNonPendingStatus(
     await removeLabel(mergingLabel, mergingPr.id)
     return
   }
-  await stopMergingCurrentPrAndProcessNextPrInQueue(
-    mergingLabel,
-    queuedLabel,
-    mergingPr.id,
-    repo.node_id
-  )
+  await removeLabel(mergingLabel, mergingPr.id)
+  await processNextPrInQueue(mergingLabel, queuedLabel, repo.node_id)
 }
 
 /**

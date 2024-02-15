@@ -80,7 +80,7 @@ export async function addLabel(
  * @param mergingPrId ID of PR that has `bot:merging` label
  * @param repoId ID of repository
  */
-export async function stopMergingCurrentPrAndProcessNextPrInQueue(
+export async function processNextPrInQueue(
   mergingLabel: Label,
   queuedLabel: Label & {
     pullRequests: {
@@ -91,16 +91,14 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
       }[]
     }
   },
-  mergingPrId: string,
   repoId: string
 ): Promise<void> {
-  await removeLabel(mergingLabel, mergingPrId)
-
   const queuedPrs = queuedLabel.pullRequests.nodes
   for (const queuedPr of queuedPrs) {
-    await removeLabel(queuedLabel, String(queuedPr.id))
-    await addLabel(mergingLabel, String(queuedPr.id))
+    await removeLabel(queuedLabel, queuedPr.id)
+    await addLabel(mergingLabel, queuedPr.id)
     try {
+      // Attempt to make next PR in queue up-to-date.
       await mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId)
       core.info("PR successfully made up-to-date")
       break
@@ -109,7 +107,7 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
       core.info(
         "Unable to update the queued PR. Will process the next item in the queue."
       )
-      await removeLabel(mergingLabel, String(queuedPr.id))
+      await removeLabel(mergingLabel, queuedPr.id)
     }
   }
 }

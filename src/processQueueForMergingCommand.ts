@@ -4,7 +4,7 @@ import {
   mergeBranch,
   removeLabel,
   addLabel,
-  stopMergingCurrentPrAndProcessNextPrInQueue,
+  processNextPrInQueue,
   mergePr,
 } from "./mutations"
 import { PullRequest, Repository } from "@octokit/webhooks-definitions/schema"
@@ -76,12 +76,8 @@ export async function processQueueForMergingCommand(
         core.error(mergePrError)
       }
     }
-    stopMergingCurrentPrAndProcessNextPrInQueue(
-      mergingLabel,
-      queuedLabel,
-      pr.node_id,
-      repo.node_id
-    )
+    await removeLabel(mergingLabel, pr.node_id)
+    processNextPrInQueue(mergingLabel, queuedLabel, repo.node_id)
   }
 }
 
