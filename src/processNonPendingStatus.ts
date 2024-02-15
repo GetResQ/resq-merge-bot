@@ -37,7 +37,7 @@ export async function processNonPendingStatus(
     // Commit that trigger this hook is not the latest commit of the merging PR
     return
   }
-  const checksToSkip: string = process.env.INPUT_CHECKS || ""
+  const checksToSkip: string = process.env.INPUT_CHECKS_TO_SKIP || ""
   const checksToSkipList = checksToSkip.split(",")
 
   if (state === "success") {
