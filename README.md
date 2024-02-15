@@ -4,7 +4,13 @@
 
 # Resq-Merge-Bot
 
-_This action is created based on [TypeScript Action Template](https://github.com/actions/typescript-action) and [autifyhq/merge-queue-action](https://github.com/autifyhq/merge-queue-action)._
+\_This action is created based on [TypeScript Action Template](https://github.com/actions/typescript-action) and [autifyhq/merge-queue-action](https://github.com/autifyhq/merge-queue-action).
+
+The main differences between this and the original project are:
+
+- Does not require a Personal Access Token (Uses `GITHUB_TOKEN`).
+- Does not wait for required checks to pass on the target branch.
+- Attempts to merge when a PR is up to date and checks have completed, relying on branch protection rules to prevent bad merges.
 
 ## Setup
 
@@ -52,13 +58,13 @@ The action will do the following to the merging PR:
 
 - Make PR up-to-date if it isn't. If it's unable to make the PR up-to-date, PR will be removed from merging status and next PR will be processed.
 - Attempt to merge PR if all checks (not including the checks listed in `checks_to_skip`) have completed.
+  - The merge may fail due to branch protection rules, failing required checked, or merge conflicts with the base branch.
 - Once the merge has either succeeded or failed, it will remove labels and merging status from the PR and start processing the next PR in the queue.
 
 ### Limitation
 
-- PR will be removed from merging status and next PR will be processed if anything causes the merge to fail, including but not limited to:
-  - branch protection rules
-  - merge conflicts
+- The bot does not wait for pending required checks on the target branch.
+- The bot can only process 20 Pull Requests at once. (Max size of the queue is 20)
 - The bot waits for all checks that are NOT listed in `checks_to_skip` to be completed before merging, even checks that are not required under branch protection.
 
 PRs welcome :)
