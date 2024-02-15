@@ -327,6 +327,10 @@ function processNonPendingStatus(repo, commit, state) {
         const { repository: { queuedLabel, mergingLabel }, } = yield fetchData(repo.owner.login, repo.name);
         if (mergingLabel.pullRequests.nodes.length === 0) {
             core.info("No merging PR to process");
+            if (queuedLabel.pullRequests.nodes.length !== 0) {
+                core.info("Queued Label exists without merging PR, remove queued label.");
+                yield mutations_1.removeLabel(queuedLabel, queuedLabel.id);
+            }
             return;
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
@@ -338,12 +342,11 @@ function processNonPendingStatus(repo, commit, state) {
         const checksToSkip = process.env.INPUT_CHECKS || "";
         const checksToSkipList = checksToSkip.split(",");
         if (state === "success") {
-            const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every((node) => {
-                var _a, _b;
-                let status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
-                if (((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name) in checksToSkipList) {
-                    status = "COMPLETED";
-                }
+            const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes
+                .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToSkipList); })
+                .map((node) => {
+                var _a;
+                const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
                 return status === "COMPLETED" || status === null || status === undefined;
             });
             if (!isAllRequiredCheckPassed) {

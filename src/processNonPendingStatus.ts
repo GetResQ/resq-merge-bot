@@ -6,7 +6,7 @@ import {
   removeLabel,
 } from "./mutations"
 import { Repository } from "@octokit/webhooks-definitions/schema"
-
+import { Label } from "./labels"
 /**
  *
  * @param repo Repository object
@@ -24,6 +24,10 @@ export async function processNonPendingStatus(
 
   if (mergingLabel.pullRequests.nodes.length === 0) {
     core.info("No merging PR to process")
+    if (queuedLabel.pullRequests.nodes.length !== 0) {
+      core.info("Queued Label exists without merging PR, remove queued label.")
+      await removeLabel(queuedLabel, queuedLabel.id)
+    }
     return
   }
 
@@ -37,15 +41,13 @@ export async function processNonPendingStatus(
   const checksToSkipList = checksToSkip.split(",")
 
   if (state === "success") {
-    const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
-      (node) => {
-        let status = node.checkRuns.nodes[0]?.status
-        if (node.checkRuns.nodes[0]?.name in checksToSkipList) {
-          status = "COMPLETED"
-        }
+    const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes
+      .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToSkipList))
+      .map((node) => {
+        const status = node.checkRuns.nodes[0]?.status
         return status === "COMPLETED" || status === null || status === undefined
-      }
-    )
+      })
+
     if (!isAllRequiredCheckPassed) {
       core.info("Not all Required Checks have finished.")
       return
@@ -70,37 +72,6 @@ export async function processNonPendingStatus(
     mergingPr.id,
     repo.node_id
   )
-}
-
-export interface Label {
-  id: string
-  name: string
-  pullRequests: {
-    nodes: {
-      id: string
-      number: number
-      title: string
-      baseRef: { name: string }
-      headRef: { name: string }
-      commits: {
-        nodes: {
-          commit: {
-            id: string
-            checkSuites: {
-              nodes: {
-                checkRuns: {
-                  nodes: {
-                    status: string
-                    name: string
-                  }[]
-                }
-              }[]
-            }
-          }
-        }[]
-      }
-    }[]
-  }
 }
 
 /**

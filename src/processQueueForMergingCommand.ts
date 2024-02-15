@@ -8,8 +8,7 @@ import {
   mergePr,
 } from "./mutations"
 import { PullRequest, Repository } from "@octokit/webhooks-definitions/schema"
-import { Label } from "./processNonPendingStatus"
-import { isBotMergingLabel, isBotQueuedLabel } from "./labels"
+import { isBotMergingLabel, isBotQueuedLabel, Label } from "./labels"
 
 /**
  *
