@@ -34,8 +34,11 @@ _This action is created based on [TypeScript Action Template](https://github.com
              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
    ```
 
-   The github token needs to have `read and write` permissions. Use the `checks_to_skip` input variable to pass in what checks you want to skip, the bot will not wait for these checks to finish and continue merging. Use this variable for checks that may still be pending but you would still like the ability to merge the PR. Separate check names with commas.
-   Example: `checks_to_skip: build,deploy`
+The github token needs to have `read and write` permissions.
+Use the `checks_to_skip` input variable to pass in what checks you want to skip, the bot will NOT wait for these checks to finish and continue merging.
+
+Separate check names with commas.
+Example: `checks_to_skip: build,deploy`
 
 ## Usage
 
