@@ -19,7 +19,7 @@ const eventName = process.env.GITHUB_EVENT_NAME
 const eventPayload: WebhookEvent = JSON.parse(
   fs.readFileSync(process.env.GITHUB_EVENT_PATH).toString()
 )
-core.info(fs.readFileSync(process.env.GITHUB_EVENT_PATH).toString())
+core.info(eventName || "")
 
 async function run(): Promise<void> {
   try {
