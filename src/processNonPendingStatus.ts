@@ -5,33 +5,25 @@ import {
   mergePr,
   removeLabel,
 } from "./mutations"
-import { isBotMergingLabel, isBotQueuedLabel } from "./labels"
 import { Repository } from "@octokit/webhooks-definitions/schema"
 
 /**
  *
  * @param repo Repository object
  * @param commit Commit object
- * @param context Check name
  * @param state Status state
  */
 export async function processNonPendingStatus(
   repo: Repository,
   commit: { node_id: string },
-  context: string,
   state: "success" | "failure" | "error"
 ): Promise<void> {
   const {
-    repository: {
-      branchProtectionRules,
-      labels: { nodes: labelNodes },
-    },
+    repository: { queuedLabel, mergingLabel },
   } = await fetchData(repo.owner.login, repo.name)
 
-  const mergingLabel = labelNodes.find(isBotMergingLabel)
-
-  if (!mergingLabel || mergingLabel.pullRequests.nodes.length === 0) {
-    // No merging PR to process
+  if (mergingLabel.pullRequests.nodes.length === 0) {
+    core.info("No merging PR to process")
     return
   }
 
@@ -41,49 +33,34 @@ export async function processNonPendingStatus(
     // Commit that trigger this hook is not the latest commit of the merging PR
     return
   }
-  const baseBranchRule = branchProtectionRules.nodes.find(
-    (rule) => rule.pattern === mergingPr.baseRef.name
-  )
-  if (!baseBranchRule) {
-    // TODO: No protection rule for merging this PR. Merge immediately?
-    return
-  }
-  const requiredCheckNames = baseBranchRule.requiredStatusCheckContexts
+  const checksToSkip: string = process.env.INPUT_CHECKS || ""
+  const checksToSkipList = checksToSkip.split(",")
 
   if (state === "success") {
-    const isAllRequiredCheckPassed = requiredCheckNames.every((checkName) => {
-      if (!checkName.includes("ci/circleci")) {
-        // TODO: Support GitHub Action. Can't get `statusCheckRollup` to work in GitHub API Explorer for some reason.
-        return true
+    const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes.every(
+      (node) => {
+        let status = node.checkRuns.nodes[0]?.status
+        if (node.checkRuns.nodes[0]?.name in checksToSkipList) {
+          status = "COMPLETED"
+        }
+        return status === "COMPLETED" || status === null || status === undefined
       }
-      return latestCommit.status.contexts.find(
-        (latestCommitContext) =>
-          latestCommitContext.context === checkName &&
-          latestCommitContext.state === "SUCCESS"
-      )
-    })
+    )
     if (!isAllRequiredCheckPassed) {
-      // Some required check is still pending
+      core.info("Not all Required Checks have finished.")
       return
     }
-
     core.info("##### ALL CHECK PASS")
     try {
-      await mergePr(mergingPr, repo.node_id)
+      await mergePr(mergingPr)
       // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
     } catch (error) {
       core.info("Unable to merge the PR.")
       core.error(error)
     }
-  } else {
-    if (!requiredCheckNames.includes(context)) {
-      // The failed check from this webhook is not in the required status check, so we can ignore it.
-      return
-    }
   }
 
-  const queuedLabel = labelNodes.find(isBotQueuedLabel)
-  if (!queuedLabel) {
+  if (queuedLabel.pullRequests.nodes.length === 0) {
     await removeLabel(mergingLabel, mergingPr.id)
     return
   }
@@ -93,6 +70,37 @@ export async function processNonPendingStatus(
     mergingPr.id,
     repo.node_id
   )
+}
+
+export interface Label {
+  id: string
+  name: string
+  pullRequests: {
+    nodes: {
+      id: string
+      number: number
+      title: string
+      baseRef: { name: string }
+      headRef: { name: string }
+      commits: {
+        nodes: {
+          commit: {
+            id: string
+            checkSuites: {
+              nodes: {
+                checkRuns: {
+                  nodes: {
+                    status: string
+                    name: string
+                  }[]
+                }
+              }[]
+            }
+          }
+        }[]
+      }
+    }[]
+  }
 }
 
 /**
@@ -105,83 +113,55 @@ async function fetchData(
   repo: string
 ): Promise<{
   repository: {
-    branchProtectionRules: {
-      nodes: { pattern: string; requiredStatusCheckContexts: string[] }[]
-    }
-    labels: {
-      nodes: {
-        id: string
-        name: string
-        pullRequests: {
-          nodes: {
-            id: string
-            number: number
-            title: string
-            baseRef: { name: string }
-            headRef: { name: string }
-            commits: {
-              nodes: {
-                id: string
-                commit: {
-                  id: string
-                  status: {
-                    contexts: {
-                      context: string
-                      state: "SUCCESS" | "PENDING" | "FAILURE"
-                    }[]
-                  }
-                }
-              }[]
-            }
-          }[]
-        }
-      }[]
-    }
+    queuedLabel: Label
+    mergingLabel: Label
   }
 }> {
   return graphqlClient(
-    `query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           branchProtectionRules(last: 10) {
-             nodes {
-               pattern
-               requiredStatusCheckContexts
-             }
-           }
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
+    `fragment labelFragment on Label{
+      id
+      name
+      pullRequests(first: 20) {
+        nodes {
+          id
+          number
+          title
+          baseRef {
+            name
+          }
+          headRef {
+            name
+          }
+          commits(last: 1) {
+            nodes {
+             commit {
+              id
+               checkSuites(first: 10) {
                  nodes {
-                   id
-                   number
-                   title
-                   baseRef {
-                     name
-                   }
-                   headRef {
-                     name
-                   }
-                   commits(last: 1) {
+                   checkRuns(last:1) {
                      nodes {
-                       commit {
-                         id
-                         status {
-                           contexts {
-                             context
-                             state
-                           }
-                         }
-                       }
+                       status
+                       name
                      }
                    }
                  }
                }
              }
-           }
-         }
-       }`,
+            }
+          }
+        }
+      }
+    }
+    query allLabels($owner: String!, $repo: String!) {
+          repository(owner:$owner, name:$repo) {
+            queuedLabel: label(name: "bot:queued") {
+              ...labelFragment
+            }
+            mergingLabel: label(name: "bot:merging") {
+              ...labelFragment
+            }
+          }
+        }`,
     { owner, repo }
   )
 }
