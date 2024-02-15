@@ -127,7 +127,7 @@ async function fetchData(
             mergingLabel: label(name: "bot:merging") {
               ...labelFragment
             }
-            commandLabel: label(name: "command:queue-for-merging:) {
+            commandLabel: label(name: "command:queue-for-merging") {
               ...labelFragment
             }
           }
