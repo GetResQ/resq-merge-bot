@@ -93,6 +93,7 @@ if (!process.env.GITHUB_EVENT_PATH) {
 }
 const eventName = process.env.GITHUB_EVENT_NAME;
 const eventPayload = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH).toString());
+core.info(fs.readFileSync(process.env.GITHUB_EVENT_PATH).toString());
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
