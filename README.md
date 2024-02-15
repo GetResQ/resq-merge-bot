@@ -35,7 +35,8 @@ _This action is created based on [TypeScript Action Template](https://github.com
    ```
 
 The github token needs to have `read and write` permissions.
-Use the `checks_to_skip` input variable to pass in what checks you want to skip, the bot will NOT wait for these checks to finish and continue merging.
+
+Use the `checks_to_skip` input variable to pass in what checks you want to skip, the bot will NOT wait for these checks to finish, and will continue merging.
 
 Separate check names with commas.
 Example: `checks_to_skip: build,deploy`
