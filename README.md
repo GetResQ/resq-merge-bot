@@ -57,7 +57,7 @@ The action will do the following to the merging PR:
 ### Limitation
 
 - PR will be removed from merging status and next PR will be processed if anything causes the merge to fail, including but not limited to:
-  - branch protection rules prevent the merge
+  - branch protection rules
   - merge conflicts
 - The bot waits for all checks that are NOT listed in `checks_to_skip` to be completed before merging, even checks that are not required under branch protection.
 
