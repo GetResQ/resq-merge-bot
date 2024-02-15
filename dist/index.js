@@ -334,7 +334,7 @@ function processNonPendingStatus(repo, commit, state) {
         if (commit.node_id !== latestCommit.id) {
             // Commit that trigger this hook is not the latest commit of the merging PR
             core.info(commit.node_id);
-            core.info(String(mutations_1.mergePr));
+            core.info(String(mergingLabel));
             return;
         }
         const checksToSkip = process.env.INPUT_CHECKS || "";
