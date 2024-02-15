@@ -29,7 +29,7 @@ _This action is created based on [TypeScript Action Template](https://github.com
        steps:
          - uses: GetResQ/resq-merge-bot@main_with_changes
            with:
-             checks_to_skip: check1,check2
+             checks_to_skip: <check1>,<check2>,etc.
            env:
              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
    ```
