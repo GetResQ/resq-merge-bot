@@ -54,9 +54,13 @@ async function processPullRequestEvent(
 
 async function processStatusEvent(statusEvent: StatusEvent): Promise<void> {
   if (statusEvent.state === "pending") {
-    core.info("status state is pending.")
     return
   }
-  await processNonPendingStatus(statusEvent.repository, statusEvent.state)
+  await processNonPendingStatus(
+    statusEvent.repository,
+    statusEvent.commit,
+    statusEvent.context,
+    statusEvent.state
+  )
   core.info("Finish process status event")
 }
