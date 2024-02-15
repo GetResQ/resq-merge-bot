@@ -22,7 +22,7 @@ const eventPayload: WebhookEvent = JSON.parse(
 
 async function run(): Promise<void> {
   try {
-    if (eventName === "pull_request") {
+    if (eventName === "pull_request_target") {
       await processPullRequestEvent(eventPayload as PullRequestEvent)
     } else if (eventName === "status") {
       await processStatusEvent(eventPayload as StatusEvent)

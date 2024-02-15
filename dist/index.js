@@ -96,7 +96,7 @@ const eventPayload = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH).t
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            if (eventName === "pull_request") {
+            if (eventName === "pull_request_target") {
                 yield processPullRequestEvent(eventPayload);
             }
             else if (eventName === "status") {
