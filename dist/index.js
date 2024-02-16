@@ -341,7 +341,7 @@ function processNonPendingStatus(repo, commit, state) {
         if (state === "success") {
             const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes
                 .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToSkipList); })
-                .map((node) => {
+                .every((node) => {
                 var _a;
                 const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
                 return status === "COMPLETED" || status === null || status === undefined;

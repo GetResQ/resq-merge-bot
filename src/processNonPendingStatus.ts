@@ -36,7 +36,7 @@ export async function processNonPendingStatus(
   if (state === "success") {
     const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes
       .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToSkipList))
-      .map((node) => {
+      .every((node) => {
         const status = node.checkRuns.nodes[0]?.status
         return status === "COMPLETED" || status === null || status === undefined
       })
