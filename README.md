@@ -64,7 +64,7 @@ The action will do the following to the merging PR:
 ### Limitation
 
 - The bot does not wait for pending required checks on the target branch.
-- The bot can only process 20 Pull Requests at once. (Max size of the queue is 20)
+- If 20 of the most recent PR's have merge conflicts, the bot will dequeue all the PR's with merge conflicts (remove all labels, since they cannot be merged), and will NOT process any additional PR's. The command label will need to be added again to process the remaining PR's.
 - The bot waits for all checks that are NOT listed in `checks_to_skip` to be completed before merging, even checks that are not required under branch protection.
 
 PRs welcome :)
