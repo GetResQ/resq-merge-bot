@@ -1,7 +1,6 @@
 import * as core from "@actions/core"
 import { graphqlClient } from "./graphqlClient"
 import { Label } from "./labels"
-
 /**
  *
  * @param base Base branch name
@@ -81,7 +80,7 @@ export async function addLabel(
  * @param mergingPrId ID of PR that has `bot:merging` label
  * @param repoId ID of repository
  */
-export async function stopMergingCurrentPrAndProcessNextPrInQueue(
+export async function processNextPrInQueue(
   mergingLabel: Label,
   queuedLabel: Label & {
     pullRequests: {
@@ -92,20 +91,19 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
       }[]
     }
   },
-  mergingPrId: string,
   repoId: string
 ): Promise<void> {
-  await removeLabel(mergingLabel, mergingPrId)
-
   const queuedPrs = queuedLabel.pullRequests.nodes
   for (const queuedPr of queuedPrs) {
     await removeLabel(queuedLabel, queuedPr.id)
     await addLabel(mergingLabel, queuedPr.id)
     try {
+      // Attempt to make next PR in queue up-to-date.
       await mergeBranch(queuedPr.headRef.name, queuedPr.baseRef.name, repoId)
       core.info("PR successfully made up-to-date")
       break
     } catch (error) {
+      core.error(error)
       core.info(
         "Unable to update the queued PR. Will process the next item in the queue."
       )
@@ -117,21 +115,20 @@ export async function stopMergingCurrentPrAndProcessNextPrInQueue(
 /**
  *
  * @param pr Pull request object
- * @param repoId
  */
-export async function mergePr(
-  pr: {
-    number: number
-    title: string
-    baseRef: { name: string }
-    headRef: { name: string }
-  },
-  repoId: string
-): Promise<void> {
-  await mergeBranch(
-    pr.baseRef.name,
-    pr.headRef.name,
-    repoId,
-    `Merge pull request #${pr.number} from ${pr.headRef.name}\n\n${pr.title}`
+export async function mergePr(pr: {
+  id: string
+  baseRef: { name: string }
+  headRef: { name: string }
+}): Promise<void> {
+  await graphqlClient(
+    `mutation MergePullRequest($pullRequestId: ID!) {
+      mergePullRequest(input: {pullRequestId: $pullRequestId, mergeMethod: SQUASH}) {
+        __typename
+      }
+    }`,
+    {
+      pullRequestId: pr.id,
+    }
   )
 }

@@ -4,15 +4,11 @@ import {
   mergeBranch,
   removeLabel,
   addLabel,
-  stopMergingCurrentPrAndProcessNextPrInQueue,
+  processNextPrInQueue,
   mergePr,
 } from "./mutations"
-import {
-  isBotMergingLabel,
-  isBotQueuedLabel,
-  isCommandQueueForMergingLabel,
-} from "./labels"
 import { PullRequest, Repository } from "@octokit/webhooks-definitions/schema"
+import { isBotMergingLabel, isBotQueuedLabel, Label } from "./labels"
 
 /**
  *
@@ -24,20 +20,11 @@ export async function processQueueForMergingCommand(
   repo: Repository
 ): Promise<void> {
   const {
-    repository: {
-      labels: { nodes: labelNodes },
-    },
+    repository: { queuedLabel, mergingLabel, commandLabel },
   } = await fetchData(repo.owner.login, repo.name)
 
   // Remove `command:queue-for-merging` label
-  const commandLabel = labelNodes.find(isCommandQueueForMergingLabel)
-  if (!commandLabel) {
-    return
-  }
   await removeLabel(commandLabel, pr.node_id)
-
-  const mergingLabel = labelNodes.find(isBotMergingLabel)
-  const queuedLabel = labelNodes.find(isBotQueuedLabel)
 
   // Create bot labels if not existed
   if (!mergingLabel) {
@@ -79,26 +66,18 @@ export async function processQueueForMergingCommand(
     if (error.message === 'Failed to merge: "Already merged"') {
       core.info("PR already up-to-date.")
       try {
-        await mergePr(
-          {
-            title: pr.title,
-            number: pr.number,
-            baseRef: { name: pr.base.ref },
-            headRef: { name: pr.head.ref },
-          },
-          repo.node_id
-        )
+        await mergePr({
+          id: pr.node_id,
+          baseRef: { name: pr.base.ref },
+          headRef: { name: pr.head.ref },
+        })
       } catch (mergePrError) {
         core.info("Unable to merge the PR")
         core.error(mergePrError)
       }
     }
-    stopMergingCurrentPrAndProcessNextPrInQueue(
-      mergingLabel,
-      queuedLabel,
-      pr.node_id,
-      repo.node_id
-    )
+    await removeLabel(mergingLabel, pr.node_id)
+    processNextPrInQueue(mergingLabel, queuedLabel, repo.node_id)
   }
 }
 
@@ -112,43 +91,42 @@ async function fetchData(
   repo: string
 ): Promise<{
   repository: {
-    labels: {
-      nodes: {
-        id: string
-        name: string
-        pullRequests: {
-          nodes: {
-            id: string
-            baseRef: { name: string }
-            headRef: { name: string }
-          }[]
-        }
-      }[]
-    }
+    queuedLabel: Omit<Label, "commits">
+    mergingLabel: Omit<Label, "commits">
+    commandLabel: Omit<Label, "commits">
   }
 }> {
   return graphqlClient(
-    `query allLabels($owner: String!, $repo: String!) {
-         repository(owner:$owner, name:$repo) {
-           labels(last: 50) {
-             nodes {
-               id
-               name
-               pullRequests(first: 20) {
-                 nodes {
-                   id
-                   baseRef {
-                     name
-                   }
-                   headRef {
-                     name
-                   }
-                 }
-               }
-             }
-           }
-         }
-       }`,
+    `fragment labelFragment on Label{
+      id
+      name
+      pullRequests(first: 20) {
+        nodes {
+          id
+          number
+          title
+          baseRef {
+            name
+          }
+          headRef {
+            name
+          }
+        }
+      }
+    }
+    query allLabels($owner: String!, $repo: String!) {
+          repository(owner:$owner, name:$repo) {
+            queuedLabel: label(name: "bot:queued") {
+              ...labelFragment
+            }
+            mergingLabel: label(name: "bot:merging") {
+              ...labelFragment
+            }
+            commandLabel: label(name: "command:queue-for-merging") {
+              ...labelFragment
+            }
+          }
+        }`,
     { owner, repo }
   )
 }

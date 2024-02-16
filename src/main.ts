@@ -22,7 +22,7 @@ const eventPayload: WebhookEvent = JSON.parse(
 
 async function run(): Promise<void> {
   try {
-    if (eventName === "pull_request") {
+    if (eventName === "pull_request_target") {
       await processPullRequestEvent(eventPayload as PullRequestEvent)
     } else if (eventName === "status") {
       await processStatusEvent(eventPayload as StatusEvent)
@@ -54,12 +54,12 @@ async function processPullRequestEvent(
 
 async function processStatusEvent(statusEvent: StatusEvent): Promise<void> {
   if (statusEvent.state === "pending") {
+    core.info("status state is pending.")
     return
   }
   await processNonPendingStatus(
     statusEvent.repository,
     statusEvent.commit,
-    statusEvent.context,
     statusEvent.state
   )
   core.info("Finish process status event")
