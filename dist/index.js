@@ -339,15 +339,15 @@ function processNonPendingStatus(repo, commit, state) {
         const checksToSkip = process.env.INPUT_CHECKS_TO_SKIP || "";
         const checksToSkipList = checksToSkip.split(",");
         if (state === "success") {
-            const isAllRequiredCheckPassed = latestCommit.checkSuites.nodes
+            const isAllChecksPassed = latestCommit.checkSuites.nodes
                 .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToSkipList); })
                 .every((node) => {
                 var _a;
                 const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
                 return status === "COMPLETED" || status === null || status === undefined;
             });
-            if (!isAllRequiredCheckPassed) {
-                core.info("Not all Required Checks have finished.");
+            if (!isAllChecksPassed) {
+                core.info("Not all checks have completed.");
                 return;
             }
             core.info("##### ALL CHECK PASS");
