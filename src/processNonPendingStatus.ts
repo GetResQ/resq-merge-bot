@@ -6,13 +6,13 @@ import { Label } from "./labels"
 /**
  *
  * @param repo Repository object
- * @param commit Commit object
- * @param state Status state
+ * @param head_sha Commit SHA
+ * @param conclusion State of the completed check_run
  */
 export async function processNonPendingStatus(
   repo: Repository,
-  commit: { node_id: string },
-  state: "success" | "failure" | "error"
+  head_sha: string,
+  conclusion: string
 ): Promise<void> {
   const {
     repository: { queuedLabel, mergingLabel },
@@ -26,14 +26,15 @@ export async function processNonPendingStatus(
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
-  if (commit.node_id !== latestCommit.id) {
-    // Commit that trigger this hook is not the latest commit of the merging PR
-    return
-  }
   const checksToSkip: string = process.env.INPUT_CHECKS_TO_SKIP || ""
   const checksToSkipList = checksToSkip.split(",")
+  if (head_sha !== latestCommit.oid) {
+    // Commit that trigger this hook is not the latest commit of the merging PR
+    core.info("Latest commit did not trigger this run.")
+    return
+  }
 
-  if (state === "success") {
+  if (conclusion === "success") {
     const isAllChecksPassed = latestCommit.checkSuites.nodes
       .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToSkipList))
       .every((node) => {
@@ -42,10 +43,10 @@ export async function processNonPendingStatus(
       })
 
     if (!isAllChecksPassed) {
-      core.info("Not all checks have completed.")
+      core.info("Not all non-ignored checks have completed.")
       return
     }
-    core.info("##### ALL CHECK PASS")
+    core.info("##### ALL NON-IGNORED CHECKS COMPLETED")
     try {
       await mergePr(mergingPr)
       // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
@@ -95,7 +96,7 @@ async function fetchData(
           commits(last: 1) {
             nodes {
              commit {
-              id
+              oid
                checkSuites(first: 10) {
                  nodes {
                    checkRuns(last:1) {
