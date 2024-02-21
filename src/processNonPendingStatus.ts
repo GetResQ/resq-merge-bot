@@ -9,7 +9,11 @@ import { Label } from "./labels"
  * @param commit Commit object
  * @param state Status state
  */
-export async function processNonPendingStatus(repo: Repository): Promise<void> {
+export async function processNonPendingStatus(
+  repo: Repository,
+  commit: { node_id: string },
+  state: "success" | "failure" | "error"
+): Promise<void> {
   const {
     repository: { queuedLabel, mergingLabel },
   } = await fetchData(repo.owner.login, repo.name)
@@ -22,27 +26,33 @@ export async function processNonPendingStatus(repo: Repository): Promise<void> {
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
+  if (commit.node_id !== latestCommit.id) {
+    // Commit that trigger this hook is not the latest commit of the merging PR
+    return
+  }
   const checksToSkip: string = process.env.INPUT_CHECKS_TO_SKIP || ""
   const checksToSkipList = checksToSkip.split(",")
 
-  const isAllChecksPassed = latestCommit.checkSuites.nodes
-    .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToSkipList))
-    .every((node) => {
-      const status = node.checkRuns.nodes[0]?.status
-      return status === "COMPLETED" || status === null || status === undefined
-    })
+  if (state === "success") {
+    const isAllChecksPassed = latestCommit.checkSuites.nodes
+      .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToSkipList))
+      .every((node) => {
+        const status = node.checkRuns.nodes[0]?.status
+        return status === "COMPLETED" || status === null || status === undefined
+      })
 
-  if (!isAllChecksPassed) {
-    core.info("Not all checks have completed.")
-    return
-  }
-  core.info("##### ALL CHECK PASS")
-  try {
-    await mergePr(mergingPr)
-    // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
-  } catch (error) {
-    core.info("Unable to merge the PR.")
-    core.error(error)
+    if (!isAllChecksPassed) {
+      core.info("Not all checks have completed.")
+      return
+    }
+    core.info("##### ALL CHECK PASS")
+    try {
+      await mergePr(mergingPr)
+      // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
+    } catch (error) {
+      core.info("Unable to merge the PR.")
+      core.error(error)
+    }
   }
 
   if (queuedLabel.pullRequests.nodes.length === 0) {
