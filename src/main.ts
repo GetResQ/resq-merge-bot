@@ -5,8 +5,8 @@ import { processNonPendingStatus } from "./processNonPendingStatus"
 import { isCommandQueueForMergingLabel } from "./labels"
 import { exit } from "process"
 import {
+  CheckRunEvent,
   PullRequestEvent,
-  StatusEvent,
   WebhookEvent,
 } from "@octokit/webhooks-definitions/schema"
 
@@ -25,7 +25,7 @@ async function run(): Promise<void> {
     if (eventName === "pull_request_target") {
       await processPullRequestEvent(eventPayload as PullRequestEvent)
     } else if (eventName === "check_run") {
-      await processStatusEvent(eventPayload as StatusEvent)
+      await processCheckRunEvent(eventPayload as CheckRunEvent)
     } else {
       core.info(`Event does not need to be processed: ${eventName}`)
     }
@@ -52,15 +52,9 @@ async function processPullRequestEvent(
   core.info("Finish process queue-for-merging command")
 }
 
-async function processStatusEvent(statusEvent: StatusEvent): Promise<void> {
-  if (statusEvent.state === "pending") {
-    core.info("status state is pending.")
-    return
-  }
-  await processNonPendingStatus(
-    statusEvent.repository,
-    statusEvent.commit,
-    statusEvent.state
-  )
+async function processCheckRunEvent(
+  checkRunEvent: CheckRunEvent
+): Promise<void> {
+  await processNonPendingStatus(checkRunEvent.repository)
   core.info("Finish process status event")
 }
