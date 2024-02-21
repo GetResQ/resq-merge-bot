@@ -100,7 +100,7 @@ function run() {
                 yield processPullRequestEvent(eventPayload);
             }
             else if (eventName === "check_run") {
-                yield processStatusEvent(eventPayload);
+                yield processCheckRunEvent(eventPayload);
             }
             else {
                 core.info(`Event does not need to be processed: ${eventName}`);
@@ -122,13 +122,9 @@ function processPullRequestEvent(pullRequestEvent) {
         core.info("Finish process queue-for-merging command");
     });
 }
-function processStatusEvent(statusEvent) {
+function processCheckRunEvent(checkRunEvent) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (statusEvent.state === "pending") {
-            core.info("status state is pending.");
-            return;
-        }
-        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.state);
+        yield processNonPendingStatus_1.processNonPendingStatus(checkRunEvent.repository);
         core.info("Finish process status event");
     });
 }
@@ -322,7 +318,7 @@ const mutations_1 = __nccwpck_require__(701);
  * @param commit Commit object
  * @param state Status state
  */
-function processNonPendingStatus(repo, commit, state) {
+function processNonPendingStatus(repo) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { queuedLabel, mergingLabel }, } = yield fetchData(repo.owner.login, repo.name);
         if (mergingLabel.pullRequests.nodes.length === 0) {
@@ -332,33 +328,27 @@ function processNonPendingStatus(repo, commit, state) {
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
-        if (commit.node_id !== latestCommit.id) {
-            // Commit that trigger this hook is not the latest commit of the merging PR
-            return;
-        }
         const checksToSkip = process.env.INPUT_CHECKS_TO_SKIP || "";
         const checksToSkipList = checksToSkip.split(",");
-        if (state === "success") {
-            const isAllChecksPassed = latestCommit.checkSuites.nodes
-                .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToSkipList); })
-                .every((node) => {
-                var _a;
-                const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
-                return status === "COMPLETED" || status === null || status === undefined;
-            });
-            if (!isAllChecksPassed) {
-                core.info("Not all checks have completed.");
-                return;
-            }
-            core.info("##### ALL CHECK PASS");
-            try {
-                yield mutations_1.mergePr(mergingPr);
-                // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
-            }
-            catch (error) {
-                core.info("Unable to merge the PR.");
-                core.error(error);
-            }
+        const isAllChecksPassed = latestCommit.checkSuites.nodes
+            .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToSkipList); })
+            .every((node) => {
+            var _a;
+            const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
+            return status === "COMPLETED" || status === null || status === undefined;
+        });
+        if (!isAllChecksPassed) {
+            core.info("Not all checks have completed.");
+            return;
+        }
+        core.info("##### ALL CHECK PASS");
+        try {
+            yield mutations_1.mergePr(mergingPr);
+            // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
+        }
+        catch (error) {
+            core.info("Unable to merge the PR.");
+            core.error(error);
         }
         if (queuedLabel.pullRequests.nodes.length === 0) {
             yield mutations_1.removeLabel(mergingLabel, mergingPr.id);
