@@ -319,8 +319,8 @@ const mutations_1 = __nccwpck_require__(701);
 /**
  *
  * @param repo Repository object
- * @param commit Commit object
- * @param state Status state
+ * @param head_sha Commit SHA
+ * @param conclusion State of the completed check_run
  */
 function processNonPendingStatus(repo, head_sha, conclusion) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -339,7 +339,7 @@ function processNonPendingStatus(repo, head_sha, conclusion) {
             core.info("Latest commit did not trigger this run.");
             return;
         }
-        if (conclusion) {
+        if (conclusion === "success") {
             const isAllChecksPassed = latestCommit.checkSuites.nodes
                 .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToSkipList); })
                 .every((node) => {

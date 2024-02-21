@@ -6,8 +6,8 @@ import { Label } from "./labels"
 /**
  *
  * @param repo Repository object
- * @param commit Commit object
- * @param state Status state
+ * @param head_sha Commit SHA
+ * @param conclusion State of the completed check_run
  */
 export async function processNonPendingStatus(
   repo: Repository,
@@ -34,7 +34,7 @@ export async function processNonPendingStatus(
     return
   }
 
-  if (conclusion) {
+  if (conclusion === "success") {
     const isAllChecksPassed = latestCommit.checkSuites.nodes
       .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToSkipList))
       .every((node) => {
