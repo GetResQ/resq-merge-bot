@@ -124,7 +124,11 @@ function processPullRequestEvent(pullRequestEvent) {
 }
 function processCheckRunEvent(checkRunEvent) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield processNonPendingStatus_1.processNonPendingStatus(checkRunEvent.repository);
+        if (checkRunEvent.action !== "completed") {
+            core.info("Check Run has not completed.");
+            return;
+        }
+        yield processNonPendingStatus_1.processNonPendingStatus(checkRunEvent.repository, checkRunEvent.check_run.head_sha, checkRunEvent.check_run.conclusion || "");
         core.info("Finish process status event");
     });
 }
@@ -318,7 +322,7 @@ const mutations_1 = __nccwpck_require__(701);
  * @param commit Commit object
  * @param state Status state
  */
-function processNonPendingStatus(repo) {
+function processNonPendingStatus(repo, head_sha, conclusion) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { queuedLabel, mergingLabel }, } = yield fetchData(repo.owner.login, repo.name);
         if (mergingLabel.pullRequests.nodes.length === 0) {
@@ -330,25 +334,32 @@ function processNonPendingStatus(repo) {
         const latestCommit = mergingPr.commits.nodes[0].commit;
         const checksToSkip = process.env.INPUT_CHECKS_TO_SKIP || "";
         const checksToSkipList = checksToSkip.split(",");
-        const isAllChecksPassed = latestCommit.checkSuites.nodes
-            .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToSkipList); })
-            .every((node) => {
-            var _a;
-            const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
-            return status === "COMPLETED" || status === null || status === undefined;
-        });
-        if (!isAllChecksPassed) {
-            core.info("Not all checks have completed.");
+        if (head_sha !== latestCommit.oid) {
+            // Commit that trigger this hook is not the latest commit of the merging PR
+            core.info("Latest commit did not trigger this run.");
             return;
         }
-        core.info("##### ALL CHECK PASS");
-        try {
-            yield mutations_1.mergePr(mergingPr);
-            // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
-        }
-        catch (error) {
-            core.info("Unable to merge the PR.");
-            core.error(error);
+        if (conclusion) {
+            const isAllChecksPassed = latestCommit.checkSuites.nodes
+                .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToSkipList); })
+                .every((node) => {
+                var _a;
+                const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
+                return status === "COMPLETED" || status === null || status === undefined;
+            });
+            if (!isAllChecksPassed) {
+                core.info("Not all non-ignored checks have completed.");
+                return;
+            }
+            core.info("##### ALL NON-IGNORED CHECKS COMPLETED");
+            try {
+                yield mutations_1.mergePr(mergingPr);
+                // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
+            }
+            catch (error) {
+                core.info("Unable to merge the PR.");
+                core.error(error);
+            }
         }
         if (queuedLabel.pullRequests.nodes.length === 0) {
             yield mutations_1.removeLabel(mergingLabel, mergingPr.id);
@@ -383,7 +394,7 @@ function fetchData(owner, repo) {
           commits(last: 1) {
             nodes {
              commit {
-              id
+              oid
                checkSuites(first: 10) {
                  nodes {
                    checkRuns(last:1) {
