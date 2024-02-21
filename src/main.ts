@@ -24,7 +24,7 @@ async function run(): Promise<void> {
   try {
     if (eventName === "pull_request_target") {
       await processPullRequestEvent(eventPayload as PullRequestEvent)
-    } else if (eventName === "status") {
+    } else if (eventName === "check_run") {
       await processStatusEvent(eventPayload as StatusEvent)
     } else {
       core.info(`Event does not need to be processed: ${eventName}`)
