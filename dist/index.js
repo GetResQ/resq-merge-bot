@@ -99,7 +99,7 @@ function run() {
             if (eventName === "pull_request_target") {
                 yield processPullRequestEvent(eventPayload);
             }
-            else if (eventName === "check_run") {
+            else if (eventName === "status") {
                 yield processStatusEvent(eventPayload);
             }
             else {
