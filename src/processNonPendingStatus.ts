@@ -31,6 +31,8 @@ export async function processNonPendingStatus(
   if (head_sha !== latestCommit.oid) {
     // Commit that trigger this hook is not the latest commit of the merging PR
     core.info("Latest commit did not trigger this run.")
+    core.info(head_sha)
+    core.info(latestCommit.oid)
     return
   }
 
