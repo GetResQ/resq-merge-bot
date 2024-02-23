@@ -25,7 +25,7 @@ exports.graphqlClient = graphql_1.graphql.defaults({
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.isBotQueuedLabel = exports.isBotMergingLabel = exports.isCommandQueueForMergingLabel = void 0;
+exports.LabelFragmentWithCommits = exports.LabelFragmentNoCommits = exports.isBotQueuedLabel = exports.isBotMergingLabel = exports.isCommandQueueForMergingLabel = void 0;
 const BotLabel = {
     CommandQueueForMerging: "command:queue-for-merging",
     BotMerging: "bot:merging",
@@ -43,6 +43,57 @@ function isBotQueuedLabel(label) {
     return label.name === BotLabel.BotQueued;
 }
 exports.isBotQueuedLabel = isBotQueuedLabel;
+exports.LabelFragmentNoCommits = `fragment LabelFragmentNoCommits on Label{
+  id
+  name
+  pullRequests(first: 20) {
+    nodes {
+      id
+      number
+      title
+      baseRef {
+        name
+      }
+      headRef {
+        name
+      }
+    }
+  }
+}`;
+exports.LabelFragmentWithCommits = `fragment LabelFragmentWithCommits on Label{
+  id
+  name
+  pullRequests(first: 20) {
+    nodes {
+      id
+      number
+      title
+      baseRef {
+        name
+      }
+      headRef {
+        name
+      }
+      commits(last: 1) {
+        nodes {
+         commit {
+          oid
+           checkSuites(first: 10) {
+             nodes {
+               checkRuns(last:1) {
+                 nodes {
+                   status
+                   name
+                 }
+               }
+             }
+           }
+         }
+        }
+      }
+    }
+  }
+}`;
 
 
 /***/ }),
@@ -316,6 +367,7 @@ exports.processNonPendingStatus = void 0;
 const core = __importStar(__nccwpck_require__(186));
 const graphqlClient_1 = __nccwpck_require__(10);
 const mutations_1 = __nccwpck_require__(701);
+const labels_1 = __nccwpck_require__(579);
 /**
  *
  * @param repo Repository object
@@ -379,47 +431,14 @@ exports.processNonPendingStatus = processNonPendingStatus;
  */
 function fetchData(owner, repo) {
     return __awaiter(this, void 0, void 0, function* () {
-        return graphqlClient_1.graphqlClient(`fragment labelFragment on Label{
-      id
-      name
-      pullRequests(first: 20) {
-        nodes {
-          id
-          number
-          title
-          baseRef {
-            name
-          }
-          headRef {
-            name
-          }
-          commits(last: 1) {
-            nodes {
-             commit {
-              oid
-               checkSuites(first: 10) {
-                 nodes {
-                   checkRuns(last:1) {
-                     nodes {
-                       status
-                       name
-                     }
-                   }
-                 }
-               }
-             }
-            }
-          }
-        }
-      }
-    }
+        return graphqlClient_1.graphqlClient(`${labels_1.LabelFragmentWithCommits}
     query allLabels($owner: String!, $repo: String!) {
           repository(owner:$owner, name:$repo) {
             queuedLabel: label(name: "bot:queued") {
-              ...labelFragment
+              ...LabelFragmentWithCommits
             }
             mergingLabel: label(name: "bot:merging") {
-              ...labelFragment
+              ...LabelFragmentWithCommits
             }
           }
         }`, { owner, repo });
@@ -474,8 +493,23 @@ const labels_1 = __nccwpck_require__(579);
  * @param repo Reposotiry data from the webhook
  */
 function processQueueForMergingCommand(pr, repo) {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { queuedLabel, mergingLabel, commandLabel }, } = yield fetchData(repo.owner.login, repo.name);
+        const checksToWait = ((_a = process.env.INPUT_CHECKS_TO_WAIT) === null || _a === void 0 ? void 0 : _a.split(",")) || [];
+        if (checksToWait && pr.labels.find(labels_1.isCommandQueueForMergingLabel)) {
+            const prWithCommit = commandLabel.pullRequests.nodes.find((node) => node.id === pr.node_id);
+            if (!prWithCommit) {
+                core.setFailed("PR not found in the command label.");
+                return;
+            }
+            const checkRuns = prWithCommit.commits.nodes.map((node) => node.commit.checkSuites.nodes[0].checkRuns.nodes);
+            const isRequiredPreQueueChecksPending = checkRuns.every((nodes) => nodes.every((node) => node.name in checksToWait && node.status !== "COMPLETED"));
+            if (!isRequiredPreQueueChecksPending) {
+                core.setFailed("Not all required checks have completed.");
+                return;
+            }
+        }
         // Remove `command:queue-for-merging` label
         yield mutations_1.removeLabel(commandLabel, pr.node_id);
         // Create bot labels if not existed
@@ -538,33 +572,19 @@ exports.processQueueForMergingCommand = processQueueForMergingCommand;
  */
 function fetchData(owner, repo) {
     return __awaiter(this, void 0, void 0, function* () {
-        return graphqlClient_1.graphqlClient(`fragment labelFragment on Label{
-      id
-      name
-      pullRequests(first: 20) {
-        nodes {
-          id
-          number
-          title
-          baseRef {
-            name
-          }
-          headRef {
-            name
-          }
-        }
-      }
-    }
+        return graphqlClient_1.graphqlClient(`
+    ${labels_1.LabelFragmentNoCommits}
+    ${labels_1.LabelFragmentWithCommits}
     query allLabels($owner: String!, $repo: String!) {
           repository(owner:$owner, name:$repo) {
             queuedLabel: label(name: "bot:queued") {
-              ...labelFragment
+              ...LabelFragmentNoCommits
             }
             mergingLabel: label(name: "bot:merging") {
-              ...labelFragment
+              ...LabelFragmentNoCommits
             }
             commandLabel: label(name: "command:queue-for-merging") {
-              ...labelFragment
+              ...LabelFragmentWithCommits
             }
           }
         }`, { owner, repo });
