@@ -49,7 +49,7 @@ Example: `checks_to_skip: build,deploy`
 
 3. Ensure your external ci runner reports statuses
    For instance on circleci, this feature must be enabled in you projects advanced tab
-   ![Screenshot 2024-02-26 at 4 27 23 PM](https://github.com/GetResQ/DummyRepo/assets/22199431/304c62d8-3955-4fb5-aa5d-1a9da6048bd7)
+   ![Screenshot 2024-02-26 at 4 27 23 PM](https://github.com/GetResQ/resq-merge-bot/assets/22199431/dff4d535-ebbd-429a-a6e8-c61025966ce4)
 
 ## Usage
 
