@@ -8,7 +8,8 @@ import {
   PullRequestEvent,
   StatusEvent,
   WebhookEvent,
-} from "@octokit/webhooks-definitions/schema"
+} from "@octokit/webhooks-types"
+import { getErrorMessage } from "./errors"
 
 if (!process.env.GITHUB_EVENT_PATH) {
   core.setFailed("GITHUB_EVENT_PATH is not available")
@@ -17,7 +18,7 @@ if (!process.env.GITHUB_EVENT_PATH) {
 
 const eventName = process.env.GITHUB_EVENT_NAME
 const eventPayload: WebhookEvent = JSON.parse(
-  fs.readFileSync(process.env.GITHUB_EVENT_PATH).toString()
+  fs.readFileSync(process.env.GITHUB_EVENT_PATH).toString(),
 )
 
 async function run(): Promise<void> {
@@ -30,14 +31,14 @@ async function run(): Promise<void> {
       core.info(`Event does not need to be processed: ${eventName}`)
     }
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(getErrorMessage(error))
   }
 }
 
 run()
 
 async function processPullRequestEvent(
-  pullRequestEvent: PullRequestEvent
+  pullRequestEvent: PullRequestEvent,
 ): Promise<void> {
   if (
     pullRequestEvent.action !== "labeled" ||
@@ -47,7 +48,7 @@ async function processPullRequestEvent(
   }
   await processQueueForMergingCommand(
     pullRequestEvent.pull_request,
-    pullRequestEvent.repository
+    pullRequestEvent.repository,
   )
   core.info("Finish process queue-for-merging command")
 }
@@ -60,7 +61,7 @@ async function processStatusEvent(statusEvent: StatusEvent): Promise<void> {
   await processNonPendingStatus(
     statusEvent.repository,
     statusEvent.commit,
-    statusEvent.state
+    statusEvent.state,
   )
   core.info("Finish process status event")
 }

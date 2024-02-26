@@ -7,8 +7,9 @@ import {
   processNextPrInQueue,
   mergePr,
 } from "./mutations"
-import { PullRequest, Repository } from "@octokit/webhooks-definitions/schema"
+import { PullRequest, Repository } from "@octokit/webhooks-types"
 import { isBotMergingLabel, isBotQueuedLabel, Label } from "./labels"
+import { getErrorMessage } from "./errors"
 
 /**
  *
@@ -17,7 +18,7 @@ import { isBotMergingLabel, isBotQueuedLabel, Label } from "./labels"
  */
 export async function processQueueForMergingCommand(
   pr: PullRequest,
-  repo: Repository
+  repo: Repository,
 ): Promise<void> {
   const {
     repository: { queuedLabel, mergingLabel, commandLabel },
@@ -63,7 +64,7 @@ export async function processQueueForMergingCommand(
     await mergeBranch(pr.head.ref, pr.base.ref, repo.node_id)
     core.info("Make PR up-to-date")
   } catch (error) {
-    if (error.message === 'Failed to merge: "Already merged"') {
+    if (getErrorMessage(error) === 'Failed to merge: "Already merged"') {
       core.info("PR already up-to-date.")
       try {
         await mergePr({
@@ -72,8 +73,17 @@ export async function processQueueForMergingCommand(
           headRef: { name: pr.head.ref },
         })
       } catch (mergePrError) {
+        const message = getErrorMessage(mergePrError)
+        if (
+          message.includes("Required status check") &&
+          message.includes("is in progress.")
+        ) {
+          // status event will re-trigger the process
+          core.info("Required Checks are still in progress")
+          return
+        }
         core.info("Unable to merge the PR")
-        core.error(mergePrError)
+        core.error(getErrorMessage(mergePrError))
       }
     }
     await removeLabel(mergingLabel, pr.node_id)
@@ -88,7 +98,7 @@ export async function processQueueForMergingCommand(
  */
 async function fetchData(
   owner: string,
-  repo: string
+  repo: string,
 ): Promise<{
   repository: {
     queuedLabel: Omit<Label, "commits">
@@ -127,6 +137,6 @@ async function fetchData(
             }
           }
         }`,
-    { owner, repo }
+    { owner, repo },
   )
 }

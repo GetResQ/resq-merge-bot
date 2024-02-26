@@ -1,11 +1,23 @@
 {
   "plugins": ["jest", "@typescript-eslint"],
-  "extends": ["plugin:github/recommended"],
+  "extends": [
+    "plugin:github/recommended",
+    "plugin:import/typescript",
+    "plugin:@typescript-eslint/recommended"
+  ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": 9,
     "sourceType": "module",
     "project": "./tsconfig.json"
+  },
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "extensions": [".js", ".ts", ".json"],
+        "moduleDirectory": ["src", "node_modules"]
+      }
+    }
   },
   "rules": {
     "eslint-comments/no-use": "off",
@@ -50,11 +62,13 @@
     "semi": "off",
     "@typescript-eslint/semi": ["error", "never"],
     "@typescript-eslint/type-annotation-spacing": "error",
-    "@typescript-eslint/unbound-method": "error"
+    "@typescript-eslint/unbound-method": "error",
+    "i18n-text/no-en": "off",
+    "filenames/match-regex": "off"
   },
   "env": {
     "node": true,
     "es6": true,
-    "jest/globals": true
+    "jest": true
   }
 }
