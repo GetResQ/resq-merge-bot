@@ -99,8 +99,8 @@ function run() {
             if (eventName === "pull_request_target") {
                 yield processPullRequestEvent(eventPayload);
             }
-            else if (eventName === "check_run") {
-                yield processCheckRunEvent(eventPayload);
+            else if (eventName === "status") {
+                yield processStatusEvent(eventPayload);
             }
             else {
                 core.info(`Event does not need to be processed: ${eventName}`);
@@ -122,13 +122,13 @@ function processPullRequestEvent(pullRequestEvent) {
         core.info("Finish process queue-for-merging command");
     });
 }
-function processCheckRunEvent(checkRunEvent) {
+function processStatusEvent(statusEvent) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (checkRunEvent.action !== "completed") {
-            core.info("Check Run has not completed.");
+        if (statusEvent.state === "pending") {
+            core.info("status state is pending.");
             return;
         }
-        yield processNonPendingStatus_1.processNonPendingStatus(checkRunEvent.repository, checkRunEvent.check_run.head_sha, checkRunEvent.check_run.conclusion || "");
+        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.state);
         core.info("Finish process status event");
     });
 }
@@ -319,10 +319,10 @@ const mutations_1 = __nccwpck_require__(701);
 /**
  *
  * @param repo Repository object
- * @param head_sha Commit SHA
- * @param conclusion State of the completed check_run
+ * @param commit Commit object
+ * @param state Status state
  */
-function processNonPendingStatus(repo, head_sha, conclusion) {
+function processNonPendingStatus(repo, commit, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { queuedLabel, mergingLabel }, } = yield fetchData(repo.owner.login, repo.name);
         if (mergingLabel.pullRequests.nodes.length === 0) {
@@ -332,16 +332,13 @@ function processNonPendingStatus(repo, head_sha, conclusion) {
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
-        const checksToSkip = process.env.INPUT_CHECKS_TO_SKIP || "";
-        const checksToSkipList = checksToSkip.split(",");
-        if (head_sha !== latestCommit.oid) {
+        if (commit.node_id !== latestCommit.id) {
             // Commit that trigger this hook is not the latest commit of the merging PR
-            core.info("Latest commit did not trigger this run.");
-            core.info(head_sha);
-            core.info(latestCommit.oid);
             return;
         }
-        if (conclusion === "success") {
+        const checksToSkip = process.env.INPUT_CHECKS_TO_SKIP || "";
+        const checksToSkipList = checksToSkip.split(",");
+        if (state === "success") {
             const isAllChecksPassed = latestCommit.checkSuites.nodes
                 .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToSkipList); })
                 .every((node) => {
@@ -350,10 +347,10 @@ function processNonPendingStatus(repo, head_sha, conclusion) {
                 return status === "COMPLETED" || status === null || status === undefined;
             });
             if (!isAllChecksPassed) {
-                core.info("Not all non-ignored checks have completed.");
+                core.info("Not all checks have completed.");
                 return;
             }
-            core.info("##### ALL NON-IGNORED CHECKS COMPLETED");
+            core.info("##### ALL CHECK PASS");
             try {
                 yield mutations_1.mergePr(mergingPr);
                 // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
@@ -396,7 +393,7 @@ function fetchData(owner, repo) {
           commits(last: 1) {
             nodes {
              commit {
-              oid
+              id
                checkSuites(first: 10) {
                  nodes {
                    checkRuns(last:1) {
