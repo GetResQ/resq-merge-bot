@@ -1,6 +1,7 @@
 import * as core from "@actions/core"
 import { graphqlClient } from "./graphqlClient"
 import { Label } from "./labels"
+import { getErrorMessage } from "./errors"
 /**
  *
  * @param base Base branch name
@@ -12,7 +13,7 @@ export async function mergeBranch(
   base: string,
   head: string,
   repoId: string,
-  commitMessage?: string
+  commitMessage?: string,
 ): Promise<void> {
   const requiredInput = { base, head, repositoryId: repoId }
   await graphqlClient(
@@ -25,7 +26,7 @@ export async function mergeBranch(
       input: commitMessage
         ? { ...requiredInput, commitMessage }
         : requiredInput,
-    }
+    },
   )
 }
 
@@ -36,7 +37,7 @@ export async function mergeBranch(
  */
 export async function removeLabel(
   label: Label,
-  labelableId: string
+  labelableId: string,
 ): Promise<void> {
   await graphqlClient(
     `mutation removeBotCommandLabel($input: RemoveLabelsFromLabelableInput!) {
@@ -46,7 +47,7 @@ export async function removeLabel(
     }`,
     {
       input: { labelIds: [label.id], labelableId },
-    }
+    },
   )
   core.info(`Label ${label.name} removed`)
 }
@@ -58,7 +59,7 @@ export async function removeLabel(
  */
 export async function addLabel(
   label: Label,
-  labelableId: string
+  labelableId: string,
 ): Promise<void> {
   await graphqlClient(
     `mutation addBotStatusLabel($input: AddLabelsToLabelableInput!) {
@@ -68,7 +69,7 @@ export async function addLabel(
     }`,
     {
       input: { labelIds: [label.id], labelableId },
-    }
+    },
   )
   core.info(`Label ${label.name} added`)
 }
@@ -91,7 +92,7 @@ export async function processNextPrInQueue(
       }[]
     }
   },
-  repoId: string
+  repoId: string,
 ): Promise<void> {
   const queuedPrs = queuedLabel.pullRequests.nodes
   for (const queuedPr of queuedPrs) {
@@ -103,9 +104,9 @@ export async function processNextPrInQueue(
       core.info("PR successfully made up-to-date")
       break
     } catch (error) {
-      core.error(error)
+      core.error(getErrorMessage(error))
       core.info(
-        "Unable to update the queued PR. Will process the next item in the queue."
+        "Unable to update the queued PR. Will process the next item in the queue.",
       )
       await removeLabel(mergingLabel, queuedPr.id)
     }
@@ -129,6 +130,6 @@ export async function mergePr(pr: {
     }`,
     {
       pullRequestId: pr.id,
-    }
+    },
   )
 }

@@ -1,8 +1,10 @@
 import * as core from "@actions/core"
 import { graphqlClient } from "./graphqlClient"
 import { processNextPrInQueue, mergePr, removeLabel } from "./mutations"
-import { Repository } from "@octokit/webhooks-definitions/schema"
+import { Repository } from "@octokit/webhooks-types"
 import { Label } from "./labels"
+import { getErrorMessage } from "./errors"
+
 /**
  *
  * @param repo Repository object
@@ -12,7 +14,7 @@ import { Label } from "./labels"
 export async function processNonPendingStatus(
   repo: Repository,
   commit: { node_id: string },
-  state: "success" | "failure" | "error"
+  state: "success" | "failure" | "error",
 ): Promise<void> {
   const {
     repository: { queuedLabel, mergingLabel },
@@ -51,7 +53,7 @@ export async function processNonPendingStatus(
       // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
     } catch (error) {
       core.info("Unable to merge the PR.")
-      core.error(error)
+      core.error(getErrorMessage(error))
     }
   }
 
@@ -70,7 +72,7 @@ export async function processNonPendingStatus(
  */
 async function fetchData(
   owner: string,
-  repo: string
+  repo: string,
 ): Promise<{
   repository: {
     queuedLabel: Label
@@ -122,6 +124,6 @@ async function fetchData(
             }
           }
         }`,
-    { owner, repo }
+    { owner, repo },
   )
 }

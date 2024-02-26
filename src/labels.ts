@@ -5,7 +5,7 @@ const BotLabel = {
 } as const
 
 export function isCommandQueueForMergingLabel(
-  label: Pick<Label, "name">
+  label: Pick<Label, "name">,
 ): boolean {
   return label.name === BotLabel.CommandQueueForMerging
 }
