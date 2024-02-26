@@ -47,6 +47,10 @@ Use the `checks_to_skip` input variable to pass in what checks you want to skip,
 Separate check names with commas.
 Example: `checks_to_skip: build,deploy`
 
+3. Ensure your external ci runner reports statuses
+   For instance on circleci, this feature must be enabled in you projects advanced tab
+   ![Screenshot 2024-02-26 at 4 27 23 PM](https://github.com/GetResQ/resq-merge-bot/assets/22199431/dff4d535-ebbd-429a-a6e8-c61025966ce4)
+
 ## Usage
 
 You can merge a PR by adding `command:queue-for-merging` label to your PR. The action will take care of the rest.
