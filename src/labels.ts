@@ -31,7 +31,7 @@ export interface Label {
       commits: {
         nodes: {
           commit: {
-            oid: string
+            id: string
             checkSuites: {
               nodes: {
                 checkRuns: {
