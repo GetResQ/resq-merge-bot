@@ -518,8 +518,13 @@ function processQueueForMergingCommand(pr, repo) {
                     });
                 }
                 catch (mergePrError) {
-                    core.info("Unable to merge the PR");
-                    core.error(mergePrError);
+                    const message = (mergePrError === null || mergePrError === void 0 ? void 0 : mergePrError.message) || mergePrError.toString();
+                    if (message.includes("Required status check") &&
+                        message.includes("is in progress.")) {
+                        // status event will re-trigger the process
+                        core.info("Required Checks are still in progress");
+                        return;
+                    }
                 }
             }
             yield mutations_1.removeLabel(mergingLabel, pr.node_id);

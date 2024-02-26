@@ -72,8 +72,15 @@ export async function processQueueForMergingCommand(
           headRef: { name: pr.head.ref },
         })
       } catch (mergePrError) {
-        core.info("Unable to merge the PR")
-        core.error(mergePrError)
+        const message = mergePrError?.message || mergePrError.toString()
+        if (
+          message.includes("Required status check") &&
+          message.includes("is in progress.")
+        ) {
+          // status event will re-trigger the process
+          core.info("Required Checks are still in progress")
+          return
+        }
       }
     }
     await removeLabel(mergingLabel, pr.node_id)
