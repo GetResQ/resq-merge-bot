@@ -2,7 +2,7 @@ import * as core from "@actions/core"
 import { graphqlClient } from "./graphqlClient"
 import { processNextPrInQueue, mergePr, removeLabel } from "./mutations"
 import { Repository } from "@octokit/webhooks-definitions/schema"
-import { Label } from "./labels"
+import { Label, LabelFragmentWithCommits } from "./labels"
 /**
  *
  * @param repo Repository object
@@ -81,47 +81,14 @@ async function fetchData(
   }
 }> {
   return graphqlClient(
-    `fragment labelFragment on Label{
-      id
-      name
-      pullRequests(first: 20) {
-        nodes {
-          id
-          number
-          title
-          baseRef {
-            name
-          }
-          headRef {
-            name
-          }
-          commits(last: 1) {
-            nodes {
-             commit {
-              oid
-               checkSuites(first: 10) {
-                 nodes {
-                   checkRuns(last:1) {
-                     nodes {
-                       status
-                       name
-                     }
-                   }
-                 }
-               }
-             }
-            }
-          }
-        }
-      }
-    }
+    `${LabelFragmentWithCommits}
     query allLabels($owner: String!, $repo: String!) {
           repository(owner:$owner, name:$repo) {
             queuedLabel: label(name: "bot:queued") {
-              ...labelFragment
+              ...LabelFragmentWithCommits
             }
             mergingLabel: label(name: "bot:merging") {
-              ...labelFragment
+              ...LabelFragmentWithCommits
             }
           }
         }`,

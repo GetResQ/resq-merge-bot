@@ -8,7 +8,14 @@ import {
   mergePr,
 } from "./mutations"
 import { PullRequest, Repository } from "@octokit/webhooks-definitions/schema"
-import { isBotMergingLabel, isBotQueuedLabel, Label } from "./labels"
+import {
+  isBotMergingLabel,
+  isBotQueuedLabel,
+  isCommandQueueForMergingLabel,
+  Label,
+  LabelFragmentNoCommits,
+  LabelFragmentWithCommits,
+} from "./labels"
 
 /**
  *
@@ -23,6 +30,29 @@ export async function processQueueForMergingCommand(
     repository: { queuedLabel, mergingLabel, commandLabel },
   } = await fetchData(repo.owner.login, repo.name)
 
+  const checksToWait = process.env.INPUT_CHECKS_TO_WAIT?.split(",") || []
+  if (checksToWait && pr.labels.find(isCommandQueueForMergingLabel)) {
+    const prWithCommit = commandLabel.pullRequests.nodes.find(
+      (node) => node.id === pr.node_id
+    )
+    if (!prWithCommit) {
+      core.setFailed("PR not found in the command label.")
+      return
+    }
+    const checkRuns = prWithCommit.commits.nodes.map(
+      (node) => node.commit.checkSuites.nodes[0].checkRuns.nodes
+    )
+
+    const isRequiredPreQueueChecksPending = checkRuns.every((nodes) =>
+      nodes.every(
+        (node) => node.name in checksToWait && node.status !== "COMPLETED"
+      )
+    )
+    if (!isRequiredPreQueueChecksPending) {
+      core.setFailed("Not all required checks have completed.")
+      return
+    }
+  }
   // Remove `command:queue-for-merging` label
   await removeLabel(commandLabel, pr.node_id)
 
@@ -93,37 +123,23 @@ async function fetchData(
   repository: {
     queuedLabel: Omit<Label, "commits">
     mergingLabel: Omit<Label, "commits">
-    commandLabel: Omit<Label, "commits">
+    commandLabel: Label
   }
 }> {
   return graphqlClient(
-    `fragment labelFragment on Label{
-      id
-      name
-      pullRequests(first: 20) {
-        nodes {
-          id
-          number
-          title
-          baseRef {
-            name
-          }
-          headRef {
-            name
-          }
-        }
-      }
-    }
+    `
+    ${LabelFragmentNoCommits}
+    ${LabelFragmentWithCommits}
     query allLabels($owner: String!, $repo: String!) {
           repository(owner:$owner, name:$repo) {
             queuedLabel: label(name: "bot:queued") {
-              ...labelFragment
+              ...LabelFragmentNoCommits
             }
             mergingLabel: label(name: "bot:merging") {
-              ...labelFragment
+              ...LabelFragmentNoCommits
             }
             commandLabel: label(name: "command:queue-for-merging") {
-              ...labelFragment
+              ...LabelFragmentWithCommits
             }
           }
         }`,
