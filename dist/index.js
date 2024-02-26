@@ -128,7 +128,7 @@ function processCheckRunEvent(checkRunEvent) {
             core.info("Check Run has not completed.");
             return;
         }
-        yield processNonPendingStatus_1.processNonPendingStatus(checkRunEvent.repository, checkRunEvent.check_run.head_sha, checkRunEvent.check_run.conclusion || "");
+        yield processNonPendingStatus_1.processNonPendingStatus(checkRunEvent.repository, checkRunEvent.check_run.check_suite.id, checkRunEvent.check_run.conclusion || "");
         core.info("Finish process status event");
     });
 }
@@ -322,7 +322,7 @@ const mutations_1 = __nccwpck_require__(701);
  * @param head_sha Commit SHA
  * @param conclusion State of the completed check_run
  */
-function processNonPendingStatus(repo, head_sha, conclusion) {
+function processNonPendingStatus(repo, checkSuiteId, conclusion) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { queuedLabel, mergingLabel }, } = yield fetchData(repo.owner.login, repo.name);
         if (mergingLabel.pullRequests.nodes.length === 0) {
@@ -334,11 +334,11 @@ function processNonPendingStatus(repo, head_sha, conclusion) {
         const latestCommit = mergingPr.commits.nodes[0].commit;
         const checksToSkip = process.env.INPUT_CHECKS_TO_SKIP || "";
         const checksToSkipList = checksToSkip.split(",");
-        if (head_sha !== latestCommit.oid) {
+        const isLatestCommit = latestCommit.checkSuites.nodes.filter((node) => checkSuiteId === node.id);
+        if (!isLatestCommit) {
             // Commit that trigger this hook is not the latest commit of the merging PR
             core.info("Latest commit did not trigger this run.");
-            core.info(head_sha);
-            core.info(latestCommit.oid);
+            core.info(checkSuiteId.toString());
             return;
         }
         if (conclusion === "success") {
@@ -399,6 +399,7 @@ function fetchData(owner, repo) {
               oid
                checkSuites(first: 10) {
                  nodes {
+                   id
                    checkRuns(last:1) {
                      nodes {
                        status

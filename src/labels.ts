@@ -34,6 +34,7 @@ export interface Label {
             oid: string
             checkSuites: {
               nodes: {
+                id: number
                 checkRuns: {
                   nodes: {
                     status: string

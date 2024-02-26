@@ -61,7 +61,7 @@ async function processCheckRunEvent(
   }
   await processNonPendingStatus(
     checkRunEvent.repository,
-    checkRunEvent.check_run.head_sha,
+    checkRunEvent.check_run.check_suite.id,
     checkRunEvent.check_run.conclusion || ""
   )
   core.info("Finish process status event")

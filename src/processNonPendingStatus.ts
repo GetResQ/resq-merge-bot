@@ -11,7 +11,7 @@ import { Label } from "./labels"
  */
 export async function processNonPendingStatus(
   repo: Repository,
-  head_sha: string,
+  checkSuiteId: number,
   conclusion: string
 ): Promise<void> {
   const {
@@ -28,11 +28,13 @@ export async function processNonPendingStatus(
   const latestCommit = mergingPr.commits.nodes[0].commit
   const checksToSkip: string = process.env.INPUT_CHECKS_TO_SKIP || ""
   const checksToSkipList = checksToSkip.split(",")
-  if (head_sha !== latestCommit.oid) {
+  const isLatestCommit = latestCommit.checkSuites.nodes.filter(
+    (node) => checkSuiteId === node.id
+  )
+  if (!isLatestCommit) {
     // Commit that trigger this hook is not the latest commit of the merging PR
     core.info("Latest commit did not trigger this run.")
-    core.info(head_sha)
-    core.info(latestCommit.oid)
+    core.info(checkSuiteId.toString())
     return
   }
 
@@ -101,6 +103,7 @@ async function fetchData(
               oid
                checkSuites(first: 10) {
                  nodes {
+                   id
                    checkRuns(last:1) {
                      nodes {
                        status
