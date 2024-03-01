@@ -20,6 +20,7 @@ export async function canQueueForMerge(
   const {
     repository: { pullrequest },
   } = await fetchData(repo.owner.login, repo.name, prNumber)
+  core.info(`${repo.owner.login}, ${repo.name}, ${prNumber}`)
   core.info(JSON.stringify(pullrequest, null, 2))
   const latestCommit = pullrequest.commits.nodes[0].commit
 
