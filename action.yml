@@ -11,3 +11,6 @@ inputs:
   checks_to_skip:
     description: "List of checks that can be skipped"
     required: true
+  require_to_queue:
+    description: "These checks must pass before the PR can be queued"
+    required: false

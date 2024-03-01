@@ -2,6 +2,108 @@ require('./sourcemap-register.js');module.exports =
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 153:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.canQueueForMerge = void 0;
+const core = __importStar(__nccwpck_require__(186));
+const graphqlClient_1 = __nccwpck_require__(10);
+/**
+ *
+ * @param repo Repository object
+ * @param commit Commit object
+ * @param state Status state
+ */
+function canQueueForMerge(repo, prNumber) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const checksToRequire = process.env.INPUT_REQUIRE_TO_QUEUE || "";
+        const checksToRequireList = checksToRequire.split(",");
+        if (checksToRequireList.length === 0) {
+            core.info("No checks required to queue for merge");
+            return true;
+        }
+        const { repository: { pullRequest }, } = yield fetchData(repo.owner.login, repo.name, prNumber);
+        const latestCommit = pullRequest.commits.nodes[0].commit;
+        return latestCommit.checkSuites.nodes
+            .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToRequireList); })
+            .every((node) => {
+            var _a;
+            const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
+            return status === "COMPLETED" || status === null || status === undefined;
+        });
+    });
+}
+exports.canQueueForMerge = canQueueForMerge;
+/**
+ * Fetch all the data for processing success status check webhook
+ * @param owner Organzation name
+ * @param repo Repository name
+ */
+function fetchData(owner, repo, prNumber) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return graphqlClient_1.graphqlClient(`
+    query GetPullRequestChecks($owner:String!, $repo: String!, $prNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          id
+          pullRequest(number: $prNumber) {
+            id
+            commits(last: 1) {
+              nodes {
+                commit {
+                  id
+                  checkSuites(first: 10) {
+                    nodes {
+                      checkRuns(last: 1) {
+                        nodes {
+                          status
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }  `, { owner, repo, prNumber });
+    });
+}
+
+
+/***/ }),
+
 /***/ 10:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -465,6 +567,7 @@ const core = __importStar(__nccwpck_require__(186));
 const graphqlClient_1 = __nccwpck_require__(10);
 const mutations_1 = __nccwpck_require__(701);
 const labels_1 = __nccwpck_require__(579);
+const canQueueForMerge_1 = __nccwpck_require__(153);
 /**
  *
  * @param pr PR data from the webhook
@@ -482,6 +585,12 @@ function processQueueForMergingCommand(pr, repo) {
         }
         if (!queuedLabel) {
             // TODO: Create bot:queued label on the fly
+            return;
+        }
+        const canQueue = yield canQueueForMerge_1.canQueueForMerge(repo, pr.number);
+        if (!canQueue) {
+            core.info("Required checks are not completed yet.");
+            yield mutations_1.removeLabel(mergingLabel, pr.node_id);
             return;
         }
         // Ignore PR that's already processed
