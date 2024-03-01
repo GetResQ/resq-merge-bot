@@ -24,7 +24,11 @@ export async function canQueueForMerge(
   core.info(checksToRequireList.join(","))
   core.info(JSON.stringify(latestCommit))
   return latestCommit.checkSuites.nodes
-    .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToRequireList))
+    .filter(
+      (node) =>
+        node.checkRuns.nodes[0]?.name !== undefined &&
+        checksToRequireList.includes(node.checkRuns.nodes[0]?.name)
+    )
     .every((node) => {
       const status = node.checkRuns.nodes[0]?.status
       return status === "COMPLETED" || status === null || status === undefined

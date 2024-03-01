@@ -58,7 +58,11 @@ function canQueueForMerge(repo, prNumber) {
         core.info(checksToRequireList.join(","));
         core.info(JSON.stringify(latestCommit));
         return latestCommit.checkSuites.nodes
-            .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToRequireList); })
+            .filter((node) => {
+            var _a, _b;
+            return ((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) !== undefined &&
+                checksToRequireList.includes((_b = node.checkRuns.nodes[0]) === null || _b === void 0 ? void 0 : _b.name);
+        })
             .every((node) => {
             var _a;
             const status = (_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.status;
