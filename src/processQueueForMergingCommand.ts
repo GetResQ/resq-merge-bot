@@ -9,6 +9,7 @@ import {
 } from "./mutations"
 import { PullRequest, Repository } from "@octokit/webhooks-definitions/schema"
 import { isBotMergingLabel, isBotQueuedLabel, Label } from "./labels"
+import { canQueueForMerge } from "./canQueueForMerge"
 
 /**
  *
@@ -35,7 +36,12 @@ export async function processQueueForMergingCommand(
     // TODO: Create bot:queued label on the fly
     return
   }
-
+  const canQueue = await canQueueForMerge(repo, pr.number)
+  if (!canQueue) {
+    core.info("Required checks are not completed yet.")
+    await removeLabel(mergingLabel, pr.node_id)
+    return
+  }
   // Ignore PR that's already processed
   if (pr.labels.find(isBotMergingLabel)) {
     core.info("PR already in the merging process.")
