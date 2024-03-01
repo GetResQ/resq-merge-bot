@@ -81,4 +81,4 @@ PRs welcome :)
 4. Commit and push to the `main` branch
 5. Create a release in GitHub with the new version; e.g. `0.4.0` in `package.json`, the release should have a tag `v0.4.0`.
 
-Please follow (SemVer)[https://semver.org/] when picking a version number for a new version
+Please follow [SemVer](https://semver.org/) when picking a version number for a new version
