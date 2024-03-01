@@ -21,9 +21,9 @@ export async function canQueueForMerge(
   core.info(`${repo.owner.login}, ${repo.name}, ${prNumber}`)
   core.info(JSON.stringify(data, null, 2))
   const {
-    repository: { pullrequest },
+    repository: { pullRequest },
   } = data
-  const latestCommit = pullrequest.commits.nodes[0].commit
+  const latestCommit = pullRequest.commits.nodes[0].commit
 
   return latestCommit.checkSuites.nodes
     .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToRequireList))
@@ -64,7 +64,7 @@ async function fetchData(
 ): Promise<{
   repository: {
     id: string
-    pullrequest: PullRequest
+    pullRequest: PullRequest
   }
 }> {
   return graphqlClient(
