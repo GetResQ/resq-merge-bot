@@ -17,11 +17,12 @@ export async function canQueueForMerge(
     core.info("No checks required to queue for merge")
     return true
   }
+  const data = await fetchData(repo.owner.login, repo.name, prNumber)
+  core.info(`${repo.owner.login}, ${repo.name}, ${prNumber}`)
+  core.info(JSON.stringify(data, null, 2))
   const {
     repository: { pullrequest },
-  } = await fetchData(repo.owner.login, repo.name, prNumber)
-  core.info(`${repo.owner.login}, ${repo.name}, ${prNumber}`)
-  core.info(JSON.stringify(pullrequest, null, 2))
+  } = data
   const latestCommit = pullrequest.commits.nodes[0].commit
 
   return latestCommit.checkSuites.nodes
