@@ -39,6 +39,7 @@ export async function processQueueForMergingCommand(
   const canQueue = await canQueueForMerge(repo, pr.number)
   if (!canQueue) {
     core.info("Required checks are not completed yet.")
+    await removeLabel(mergingLabel, pr.node_id)
     return
   }
   // Ignore PR that's already processed
