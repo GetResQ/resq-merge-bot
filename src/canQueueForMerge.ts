@@ -21,6 +21,7 @@ export async function canQueueForMerge(
     repository: { pullRequest },
   } = await fetchData(repo.owner.login, repo.name, prNumber)
   const latestCommit = pullRequest.commits.nodes[0].commit
+  core.info(checksToRequireList.join(","))
   core.info(JSON.stringify(latestCommit))
   return latestCommit.checkSuites.nodes
     .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToRequireList))
