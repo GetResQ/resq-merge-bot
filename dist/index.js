@@ -590,6 +590,7 @@ function processQueueForMergingCommand(pr, repo) {
         const canQueue = yield canQueueForMerge_1.canQueueForMerge(repo, pr.number);
         if (!canQueue) {
             core.info("Required checks are not completed yet.");
+            yield mutations_1.removeLabel(mergingLabel, pr.node_id);
             return;
         }
         // Ignore PR that's already processed
