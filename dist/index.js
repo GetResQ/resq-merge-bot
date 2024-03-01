@@ -53,10 +53,7 @@ function canQueueForMerge(repo, prNumber) {
             core.info("No checks required to queue for merge");
             return true;
         }
-        const data = yield fetchData(repo.owner.login, repo.name, prNumber);
-        core.info(`${repo.owner.login}, ${repo.name}, ${prNumber}`);
-        core.info(JSON.stringify(data, null, 2));
-        const { repository: { pullRequest }, } = data;
+        const { repository: { pullRequest }, } = yield fetchData(repo.owner.login, repo.name, prNumber);
         const latestCommit = pullRequest.commits.nodes[0].commit;
         return latestCommit.checkSuites.nodes
             .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToRequireList); })
