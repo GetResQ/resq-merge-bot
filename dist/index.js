@@ -54,6 +54,7 @@ function canQueueForMerge(repo, prNumber) {
             return true;
         }
         const { repository: { pullrequest }, } = yield fetchData(repo.owner.login, repo.name, prNumber);
+        core.info(JSON.stringify(pullrequest, null, 2));
         const latestCommit = pullrequest.commits.nodes[0].commit;
         return latestCommit.checkSuites.nodes
             .filter((node) => { var _a; return !(((_a = node.checkRuns.nodes[0]) === null || _a === void 0 ? void 0 : _a.name) in checksToRequireList); })
