@@ -21,9 +21,12 @@ export async function canQueueForMerge(
     repository: { pullRequest },
   } = await fetchData(repo.owner.login, repo.name, prNumber)
   const latestCommit = pullRequest.commits.nodes[0].commit
-
   return latestCommit.checkSuites.nodes
-    .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToRequireList))
+    .filter(
+      (node) =>
+        node.checkRuns.nodes[0]?.name !== undefined &&
+        checksToRequireList.includes(node.checkRuns.nodes[0]?.name)
+    )
     .every((node) => {
       const status = node.checkRuns.nodes[0]?.status
       return status === "COMPLETED" || status === null || status === undefined
