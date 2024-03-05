@@ -26,7 +26,7 @@ export async function processNonPendingStatus(
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
-  if (commit_id !== latestCommit.id || commit_id !== latestCommit.oid) {
+  if (!(commit_id === latestCommit.id || commit_id === latestCommit.oid)) {
     core.info(
       `Commit that triggered this hook is not the latest commit of the merging PR: \
       eventCommitId:${commit_id}
