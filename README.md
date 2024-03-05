@@ -21,23 +21,26 @@ The main differences between this and the original project are:
 2. Create `.github/workflows/merge-queue.yml` in your repository with the following content:
 
    ```yml
-   name: merge-queue
+    name: merge-queue
+    on:
+    // either status or check_suite is required
+    status:
+    check_suite:
+    types: [completed]
 
-   on:
-     status:
-     pull_request_target:
-       types:
-         - labeled
-
-   jobs:
-     merge-queue:
-       runs-on: ubuntu-latest
-       steps:
-         - uses: GetResQ/resq-merge-bot@main_with_changes
-           with:
-             checks_to_skip: <check1>,<check2>,etc.
-           env:
-             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        pull_request_target:
+          types:
+            - labeled
+        jobs:
+          merge-queue:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: GetResQ/resq-merge-bot@main
+                with:
+                  checks_to_skip: merge-queue
+                  require_to_queue: this-is-optional
+                env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
    ```
 
 The github token needs to have `read and write` permissions.
@@ -62,7 +65,7 @@ The action will do the following to the merging PR:
 
 - Make PR up-to-date if it isn't. If it's unable to make the PR up-to-date, PR will be removed from merging status and next PR will be processed.
 - Attempt to merge PR if all checks (not including the checks listed in `checks_to_skip`) have completed.
-  - The merge may fail due to branch protection rules, failing required checked, or merge conflicts with the base branch.
+- The merge may fail due to branch protection rules, failing required checked, or merge conflicts with the base branch.
 - Once the merge has either succeeded or failed, it will remove labels and merging status from the PR and start processing the next PR in the queue.
 
 ### Limitation
@@ -82,3 +85,7 @@ PRs welcome :)
 5. Create a release in GitHub with the new version; e.g. `0.4.0` in `package.json`, the release should have a tag `v0.4.0`.
 
 Please follow [SemVer](https://semver.org/) when picking a version number for a new version
+
+```
+
+```

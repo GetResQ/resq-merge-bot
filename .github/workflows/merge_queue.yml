@@ -1,8 +1,9 @@
 name: merge-queue
 
 on:
-  status:
-  pull_request:
+  check_suite:
+    types: [completed]
+  pull_request_target:
     types:
       - labeled
 
@@ -10,8 +11,8 @@ jobs:
   merge-queue:
     runs-on: ubuntu-latest
     steps:
-      - uses: GetResQ/resq-merge-bot@main
+      - uses: GetResQ/resq-merge-bot@optional-check-suite-event
         with:
-          checks: ${{ github.event.inputs.checks }}
+          checks_to_skip: merge-queue
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
