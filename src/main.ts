@@ -5,6 +5,7 @@ import { processNonPendingStatus } from "./processNonPendingStatus"
 import { isCommandQueueForMergingLabel } from "./labels"
 import { exit } from "process"
 import {
+  CheckSuiteEvent,
   PullRequestEvent,
   StatusEvent,
   WebhookEvent,
@@ -26,6 +27,8 @@ async function run(): Promise<void> {
       await processPullRequestEvent(eventPayload as PullRequestEvent)
     } else if (eventName === "status") {
       await processStatusEvent(eventPayload as StatusEvent)
+    } else if (eventName === "check_suite") {
+      await processCheckSuiteEvent(eventPayload as CheckSuiteEvent)
     } else {
       core.info(`Event does not need to be processed: ${eventName}`)
     }
@@ -59,8 +62,26 @@ async function processStatusEvent(statusEvent: StatusEvent): Promise<void> {
   }
   await processNonPendingStatus(
     statusEvent.repository,
-    statusEvent.commit,
+    statusEvent.commit.node_id,
     statusEvent.state
   )
   core.info("Finish process status event")
+}
+
+async function processCheckSuiteEvent(
+  checkSuiteEvent: CheckSuiteEvent
+): Promise<void> {
+  const conclusion = checkSuiteEvent.check_suite.conclusion
+  if (conclusion === null) {
+    core.info(`check suite pending.`)
+    return
+  }
+  const status = conclusion === "success" ? "success" : "failure"
+  const commit_node_id = checkSuiteEvent.check_suite.head_commit.id
+  await processNonPendingStatus(
+    checkSuiteEvent.repository,
+    commit_node_id,
+    status
+  )
+  core.info("Finish process check suite event")
 }

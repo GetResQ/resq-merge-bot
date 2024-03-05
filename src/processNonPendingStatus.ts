@@ -11,7 +11,7 @@ import { Label } from "./labels"
  */
 export async function processNonPendingStatus(
   repo: Repository,
-  commit: { node_id: string },
+  commit_node_id: string,
   state: "success" | "failure" | "error"
 ): Promise<void> {
   const {
@@ -26,7 +26,7 @@ export async function processNonPendingStatus(
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
-  if (commit.node_id !== latestCommit.id) {
+  if (commit_node_id !== latestCommit.id) {
     // Commit that trigger this hook is not the latest commit of the merging PR
     return
   }
