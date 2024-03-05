@@ -216,7 +216,7 @@ function processCheckSuiteEvent(checkSuiteEvent) {
             return;
         }
         const status = conclusion === "success" ? "success" : "failure";
-        const commit_node_id = checkSuiteEvent.check_suite.head_commit.id;
+        const commit_node_id = checkSuiteEvent.check_suite.head_sha;
         yield processNonPendingStatus_1.processNonPendingStatus(checkSuiteEvent.repository, commit_node_id, status);
         core.info("Finish process check suite event");
     });
@@ -477,10 +477,10 @@ const mutations_1 = __nccwpck_require__(701);
 /**
  *
  * @param repo Repository object
- * @param commit Commit object
+ * @param commit_id Either the SHA or node_id of the commit
  * @param state Status state
  */
-function processNonPendingStatus(repo, commit_node_id, state) {
+function processNonPendingStatus(repo, commit_id, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { queuedLabel, mergingLabel }, } = yield fetchData(repo.owner.login, repo.name);
         if (mergingLabel.pullRequests.nodes.length === 0) {
@@ -490,8 +490,13 @@ function processNonPendingStatus(repo, commit_node_id, state) {
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
-        if (commit_node_id !== latestCommit.id) {
-            core.info(`Commit that trigger this hook is not the latest commit of the merging PR: ${commit_node_id} !== ${latestCommit.id}`);
+        if (commit_id !== latestCommit.id || commit_id !== latestCommit.oid) {
+            core.info(`Commit that triggered this hook is not the latest commit of the merging PR: \
+      eventCommitId:${commit_id}
+      latestCommit.id:${latestCommit.id}
+      latestCommit.oid:${latestCommit.oid}
+
+      `);
             return;
         }
         const checksToSkip = process.env.INPUT_CHECKS_TO_SKIP || "";
@@ -552,6 +557,7 @@ function fetchData(owner, repo) {
             nodes {
              commit {
               id
+              oid
                checkSuites(first: 10) {
                  nodes {
                    checkRuns(last:1) {

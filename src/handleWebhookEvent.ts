@@ -67,7 +67,7 @@ export async function processCheckSuiteEvent(
     return
   }
   const status = conclusion === "success" ? "success" : "failure"
-  const commit_node_id = checkSuiteEvent.check_suite.head_commit.id
+  const commit_node_id = checkSuiteEvent.check_suite.head_sha
   await processNonPendingStatus(
     checkSuiteEvent.repository,
     commit_node_id,

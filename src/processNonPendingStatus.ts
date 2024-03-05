@@ -6,12 +6,12 @@ import { Label } from "./labels"
 /**
  *
  * @param repo Repository object
- * @param commit Commit object
+ * @param commit_id Either the SHA or node_id of the commit
  * @param state Status state
  */
 export async function processNonPendingStatus(
   repo: Repository,
-  commit_node_id: string,
+  commit_id: string,
   state: "success" | "failure" | "error"
 ): Promise<void> {
   const {
@@ -26,9 +26,14 @@ export async function processNonPendingStatus(
 
   const mergingPr = mergingLabel.pullRequests.nodes[0]
   const latestCommit = mergingPr.commits.nodes[0].commit
-  if (commit_node_id !== latestCommit.id) {
+  if (commit_id !== latestCommit.id || commit_id !== latestCommit.oid) {
     core.info(
-      `Commit that trigger this hook is not the latest commit of the merging PR: ${commit_node_id} !== ${latestCommit.id}`
+      `Commit that triggered this hook is not the latest commit of the merging PR: \
+      eventCommitId:${commit_id}
+      latestCommit.id:${latestCommit.id}
+      latestCommit.oid:${latestCommit.oid}
+
+      `
     )
     return
   }
@@ -98,6 +103,7 @@ async function fetchData(
             nodes {
              commit {
               id
+              oid
                checkSuites(first: 10) {
                  nodes {
                    checkRuns(last:1) {
