@@ -125,6 +125,107 @@ exports.graphqlClient = graphql_1.graphql.defaults({
 
 /***/ }),
 
+/***/ 654:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.processCheckSuiteEvent = exports.processStatusEvent = exports.processPullRequestEvent = exports.handleWebhookEvent = void 0;
+const core = __importStar(__nccwpck_require__(186));
+const processQueueForMergingCommand_1 = __nccwpck_require__(356);
+const processNonPendingStatus_1 = __nccwpck_require__(239);
+const labels_1 = __nccwpck_require__(579);
+function handleWebhookEvent(eventName, eventPayload) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            if (eventName === "pull_request_target") {
+                yield processPullRequestEvent(eventPayload);
+            }
+            else if (eventName === "status") {
+                yield processStatusEvent(eventPayload);
+            }
+            else if (eventName === "check_suite") {
+                yield processCheckSuiteEvent(eventPayload);
+            }
+            else {
+                core.info(`Event does not need to be processed: ${eventName}`);
+            }
+        }
+        catch (error) {
+            core.setFailed(error.message);
+        }
+    });
+}
+exports.handleWebhookEvent = handleWebhookEvent;
+function processPullRequestEvent(pullRequestEvent) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (pullRequestEvent.action !== "labeled" ||
+            !labels_1.isCommandQueueForMergingLabel(pullRequestEvent.label)) {
+            return;
+        }
+        yield processQueueForMergingCommand_1.processQueueForMergingCommand(pullRequestEvent.pull_request, pullRequestEvent.repository);
+        core.info("Finish process queue-for-merging command");
+    });
+}
+exports.processPullRequestEvent = processPullRequestEvent;
+function processStatusEvent(statusEvent) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (statusEvent.state === "pending") {
+            core.info("status state is pending.");
+            return;
+        }
+        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit.node_id, statusEvent.state);
+        core.info("Finish process status event");
+    });
+}
+exports.processStatusEvent = processStatusEvent;
+function processCheckSuiteEvent(checkSuiteEvent) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const conclusion = checkSuiteEvent.check_suite.conclusion;
+        if (conclusion === null) {
+            core.info(`check suite pending.`);
+            return;
+        }
+        const status = conclusion === "success" ? "success" : "failure";
+        const commit_node_id = checkSuiteEvent.check_suite.head_sha;
+        yield processNonPendingStatus_1.processNonPendingStatus(checkSuiteEvent.repository, commit_node_id, status);
+        core.info("Finish process check suite event");
+    });
+}
+exports.processCheckSuiteEvent = processCheckSuiteEvent;
+
+
+/***/ }),
+
 /***/ 579:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -177,67 +278,18 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(186));
 const fs = __importStar(__nccwpck_require__(747));
-const processQueueForMergingCommand_1 = __nccwpck_require__(356);
-const processNonPendingStatus_1 = __nccwpck_require__(239);
-const labels_1 = __nccwpck_require__(579);
 const process_1 = __nccwpck_require__(765);
+const handleWebhookEvent_1 = __nccwpck_require__(654);
 if (!process.env.GITHUB_EVENT_PATH) {
     core.setFailed("GITHUB_EVENT_PATH is not available");
     process_1.exit(1);
 }
 const eventName = process.env.GITHUB_EVENT_NAME;
 const eventPayload = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH).toString());
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            if (eventName === "pull_request_target") {
-                yield processPullRequestEvent(eventPayload);
-            }
-            else if (eventName === "status") {
-                yield processStatusEvent(eventPayload);
-            }
-            else {
-                core.info(`Event does not need to be processed: ${eventName}`);
-            }
-        }
-        catch (error) {
-            core.setFailed(error.message);
-        }
-    });
-}
-run();
-function processPullRequestEvent(pullRequestEvent) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (pullRequestEvent.action !== "labeled" ||
-            !labels_1.isCommandQueueForMergingLabel(pullRequestEvent.label)) {
-            return;
-        }
-        yield processQueueForMergingCommand_1.processQueueForMergingCommand(pullRequestEvent.pull_request, pullRequestEvent.repository);
-        core.info("Finish process queue-for-merging command");
-    });
-}
-function processStatusEvent(statusEvent) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (statusEvent.state === "pending") {
-            core.info("status state is pending.");
-            return;
-        }
-        yield processNonPendingStatus_1.processNonPendingStatus(statusEvent.repository, statusEvent.commit, statusEvent.state);
-        core.info("Finish process status event");
-    });
-}
+handleWebhookEvent_1.handleWebhookEvent(eventName, eventPayload);
 
 
 /***/ }),
@@ -425,10 +477,10 @@ const mutations_1 = __nccwpck_require__(701);
 /**
  *
  * @param repo Repository object
- * @param commit Commit object
+ * @param commit_id Either the SHA or node_id of the commit
  * @param state Status state
  */
-function processNonPendingStatus(repo, commit, state) {
+function processNonPendingStatus(repo, commit_id, state) {
     return __awaiter(this, void 0, void 0, function* () {
         const { repository: { queuedLabel, mergingLabel }, } = yield fetchData(repo.owner.login, repo.name);
         if (mergingLabel.pullRequests.nodes.length === 0) {
@@ -438,8 +490,13 @@ function processNonPendingStatus(repo, commit, state) {
         }
         const mergingPr = mergingLabel.pullRequests.nodes[0];
         const latestCommit = mergingPr.commits.nodes[0].commit;
-        if (commit.node_id !== latestCommit.id) {
-            // Commit that trigger this hook is not the latest commit of the merging PR
+        if (!(commit_id === latestCommit.id || commit_id === latestCommit.oid)) {
+            core.info(`Commit that triggered this hook is not the latest commit of the merging PR: \
+      eventCommitId:${commit_id}
+      latestCommit.id:${latestCommit.id}
+      latestCommit.oid:${latestCommit.oid}
+
+      `);
             return;
         }
         const checksToSkip = process.env.INPUT_CHECKS_TO_SKIP || "";
@@ -500,6 +557,7 @@ function fetchData(owner, repo) {
             nodes {
              commit {
               id
+              oid
                checkSuites(first: 10) {
                  nodes {
                    checkRuns(last:1) {
