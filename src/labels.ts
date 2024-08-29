@@ -18,6 +18,21 @@ export function isBotQueuedLabel(label: Pick<Label, "name">): boolean {
   return label.name === BotLabel.BotQueued
 }
 
+export interface Commit {
+  id: string
+  oid: string
+  checkSuites: {
+    nodes: {
+      checkRuns: {
+        nodes: {
+          status: string
+          name: string
+        }[]
+      }
+    }[]
+  }
+}
+
 export interface Label {
   id: string
   name: string
@@ -30,20 +45,7 @@ export interface Label {
       headRef: { name: string }
       commits: {
         nodes: {
-          commit: {
-            id: string
-            oid: string
-            checkSuites: {
-              nodes: {
-                checkRuns: {
-                  nodes: {
-                    status: string
-                    name: string
-                  }[]
-                }
-              }[]
-            }
-          }
+          commit: Commit
         }[]
       }
     }[]

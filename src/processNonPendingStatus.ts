@@ -2,7 +2,20 @@ import * as core from "@actions/core"
 import { graphqlClient } from "./graphqlClient"
 import { processNextPrInQueue, mergePr, removeLabel } from "./mutations"
 import { Repository } from "@octokit/webhooks-definitions/schema"
-import { Label } from "./labels"
+import { Label, Commit } from "./labels"
+
+function isChecksPassing(latestCommit: Commit) {
+  const checksToSkip: string = process.env.INPUT_CHECKS_TO_SKIP || ""
+  const checksToSkipList = checksToSkip.split(",")
+
+  return latestCommit.checkSuites.nodes
+    .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToSkipList))
+    .every((node) => {
+      const status = node.checkRuns.nodes[0]?.status
+      return status === "COMPLETED" || status === null || status === undefined
+    })
+}
+
 /**
  *
  * @param repo Repository object
@@ -37,16 +50,9 @@ export async function processNonPendingStatus(
     )
     return
   }
-  const checksToSkip: string = process.env.INPUT_CHECKS_TO_SKIP || ""
-  const checksToSkipList = checksToSkip.split(",")
 
   if (state === "success") {
-    const isAllChecksPassed = latestCommit.checkSuites.nodes
-      .filter((node) => !(node.checkRuns.nodes[0]?.name in checksToSkipList))
-      .every((node) => {
-        const status = node.checkRuns.nodes[0]?.status
-        return status === "COMPLETED" || status === null || status === undefined
-      })
+    const isAllChecksPassed = isChecksPassing(latestCommit)
 
     if (!isAllChecksPassed) {
       core.info("Not all checks have completed.")
@@ -55,9 +61,22 @@ export async function processNonPendingStatus(
     core.info("##### ALL CHECK PASS")
     try {
       await mergePr(mergingPr)
-      // TODO: Delete head branch of that PR (maybe)(might not if merge unsuccessful)
     } catch (error) {
-      core.info("Unable to merge the PR.")
+      core.info("PR merge failed, rechecking status.")
+      core.info("Commit state when we decided to merge was:")
+      core.info(JSON.stringify(latestCommit, null, 2))
+      const RefetechedState = await fetchData(repo.owner.login, repo.name)
+      const RefetchedMergingLabel = RefetechedState.repository.mergingLabel
+      const RefetchedLatestCommit =
+        RefetchedMergingLabel.pullRequests.nodes[0].commits.nodes[0].commit
+      const isAllChecksPassed = isChecksPassing(RefetchedLatestCommit)
+      if (!isAllChecksPassed) {
+        core.info("Not all checks have completed.")
+        core.info("Refetched commit state:")
+        core.info(JSON.stringify(RefetchedLatestCommit, null, 2))
+        return
+      }
+      core.info("Aborting Merge")
       core.error(error)
     }
   }
